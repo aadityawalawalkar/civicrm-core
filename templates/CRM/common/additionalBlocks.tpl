@@ -93,6 +93,64 @@ function buildAdditionalBlocks( blockName, className ) {
     }
 }
 
+function buildAddressBlock(blockName, className, blockId, anotherAddress) {
+  if (!blockId) {
+    var element = blockName + '_Block_';
+
+    //get blockcount of last element of relevant blockName
+    var lastInstance = parseInt( cj( '[id^="'+ element +'"]:last' ).attr('id').slice( element.length )); 
+    if (lastInstance) {
+      blockId = lastInstance + 1;
+    }
+  }
+
+  var currentInstance  = blockId;
+
+  //show primary option if block count = 2
+  if (currentInstance == 2) {
+    cj("#" + blockName + '-Primary').show( );
+    cj("#" + blockName + '-Primary-html').show( );
+  }
+
+  var dataUrl = {/literal}"{crmURL h=0 q='snippet=4'}"{literal} + '&block=' + blockName + '&count=' + blockId + '&addressBlockId=' + blockId;
+  if (anotherAddress && blockId) {
+    dataUrl = dataUrl + '&unsetAddressBlockData=' + blockId;
+  }
+
+  {/literal}
+  {if $qfKey}
+     dataUrl += "&qfKey={$qfKey}";
+  {/if}
+  {literal}
+
+  if (!dataUrl) {
+    return;
+  }
+
+  cj.ajax({
+    url     : dataUrl,
+    async   : false,
+    success : function(data) {
+      cj('#addressBlock').append(data);
+    }
+  });
+
+  if (anotherAddress && lastInstance) {
+    cj('#addMore' + blockName + lastInstance).hide( );
+    cj('#addMore' + blockName + blockId).show( );
+    clearFirstBlock( blockName, blockId, 1);
+  } 
+  else {
+    cj('#addMore' + blockName + blockId ).hide( );
+  }
+
+  if (blockName == 'Address') {
+    checkLocation('address_' + blockId + '_location_type_id', true );
+    /* FIX: for IE, To get the focus after adding new address block on first element */
+    cj('#address_' + blockId + '_location_type_id').focus();
+  }
+}
+
 //select single for is_bulk & is_primary
 function singleSelect( object ) {
     var element = object.split( '_', 3 );
@@ -129,7 +187,7 @@ function singleSelect( object ) {
 function removeBlock( blockName, blockId ) {
     var element = cj("#addressBlock > div").size();
     if ( ( blockName == 'Address' ) && element == 1 ) {
-      return clearFirstBlock(blockName , blockId);
+      return clearFirstBlock(blockName , blockId, 1);
     }
 
     if ( cj( "#"+ blockName + "_" + blockId + "_IsPrimary").attr('checked') ) {
@@ -162,20 +220,31 @@ function removeBlock( blockName, blockId ) {
     //show the link 'add address' to last element of Address Block
     if ( blockName == 'Address' ) {
         var lastAddressBlock = cj('div[id^=Address_Block_]').last().attr('id');
-        var lastBlockId = lastAddressBlock.split( '_' );
-        if ( lastBlockId[2] ) {
+	if (lastAddressBlock) {
+          var lastBlockId = lastAddressBlock.split( '_' );
+          if ( lastBlockId[2] ) {
             cj( '#addMoreAddress' + lastBlockId[2] ).show();
+          }
         }
     }
 }
 
-function clearFirstBlock( blockName , blockId ) {
+function clearFirstBlock( blockName , blockId, accordionflag) {
     var element =  blockName + '_Block_' + blockId;
     cj("#" + element +" input, " + "#" + element + " select").each(function () {
         cj(this).val('');
     });
-    cj("#addressBlockId:not(.collapsed)").crmAccordionToggle();
-    cj("#addressBlockId .active").removeClass('active');
+    
+    if (blockName == 'Address' && accordionflag) {
+      if (cj("#" + element).attr('data-edit-params')) {
+        cj("#" + element).attr('data-edit-params', '');
+      }
+      return true;
+    }
+    else {
+      cj("#addressBlockId:not(.collapsed)").crmAccordionToggle();
+      cj("#addressBlockId .active").removeClass('active');
+    }
 }
 
 function getAddressBlock( position ) {

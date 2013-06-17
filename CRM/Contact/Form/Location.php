@@ -42,6 +42,8 @@ class CRM_Contact_Form_Location {
   static function preProcess(&$form) {
     $form->_addBlockName = CRM_Utils_Request::retrieve('block', 'String', CRM_Core_DAO::$_nullObject);
     $additionalblockCount = CRM_Utils_Request::retrieve('count', 'Positive', CRM_Core_DAO::$_nullObject);
+    $form->_addressBlockId = CRM_Utils_Request::retrieve('addressBlockId', 'Positive', CRM_Core_DAO::$_nullObject);
+    $form->_unsetAddressBlockData = CRM_Utils_Request::retrieve('unsetAddressBlockData', 'Positive', CRM_Core_DAO::$_nullObject);
 
     $form->assign('addBlock', FALSE);
     if ($form->_addBlockName && $additionalblockCount) {
@@ -88,6 +90,17 @@ class CRM_Contact_Form_Location {
       $name = strtolower($blockName);
 
       $instances = array(1);
+      // unset address without data
+      if (isset($name) && $name == 'address') {
+        if (isset($_POST[$name]) && is_array($_POST[$name])) { 
+          foreach( $_POST[$name] as $aKey => $aValue ) { 
+            if (!array_key_exists('location_type_id', $aValue)) {
+               unset($_POST[$name][$aKey]);
+            }
+          }
+        }
+      }
+
       if (CRM_Utils_Array::value($name, $_POST) && is_array($_POST[$name])) {
         $instances = array_keys($_POST[$name]);
       }
@@ -95,20 +108,39 @@ class CRM_Contact_Form_Location {
         $instances = array_keys($form->_values[$name]);
       }
 
-      foreach ($instances as $instance) {
-        if ($instance == 1) {
-          $form->assign('addBlock', FALSE);
-          $form->assign('blockId', $instance);
+      // unset deleted address from form
+      if ($name == 'address' && isset($form->_unsetAddressBlockData)) {
+        if (isset($form->_values['address']) && is_array($form->_values['address'])) {
+          if (isset($form->_values['address'][$form->_unsetAddressBlockData])) {
+            unset($form->_values['address'][$form->_unsetAddressBlockData]);
+          }
         }
-        else {
-          //we are going to build other block instances w/ AJAX
-          $generateAjaxRequest++;
-          $ajaxRequestBlocks[$blockName][$instance] = TRUE;
-        }
+      }
 
-        $form->set($blockName . '_Block_Count', $instance);
+      // build a single address block
+      if ($name == 'address' && isset($form->_addressBlockId)) {
+        $form->assign('addBlock', FALSE);
+        $form->assign('blockId', $form->_addressBlockId);
+        $form->set($blockName . '_Block_Count', $form->_addressBlockId);
         $formName = 'CRM_Contact_Form_Edit_' . $blockName;
         $formName::buildQuickForm( $form );
+      } 
+      else {
+        foreach ($instances as $instance) {
+          if ($instance == 1) {
+            $form->assign('addBlock', FALSE);
+            $form->assign('blockId', $instance);
+          }
+          else {
+            //we are going to build other block instances w/ AJAX
+            $generateAjaxRequest++;
+            $ajaxRequestBlocks[$blockName][$instance] = TRUE;
+          }
+
+          $form->set($blockName . '_Block_Count', $instance);
+          $formName = 'CRM_Contact_Form_Edit_' . $blockName;
+          $formName::buildQuickForm( $form );
+        }
       }
     }
 

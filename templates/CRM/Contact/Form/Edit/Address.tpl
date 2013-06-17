@@ -35,7 +35,9 @@
  <div class="crm-accordion-body" id="addressBlock">
 {/if}
 
- <div id="Address_Block_{$blockId}" {if $className eq 'CRM_Contact_Form_Contact'} class="boxBlock crm-edit-address-block crm-address_{$blockId}"{/if}>
+ {* fetch location_type_id *}
+ {assign var="location_type_id" value=$form.address.$blockId.location_type_id.value.0}
+ <div id="Address_Block_{$blockId}" {if $className eq 'CRM_Contact_Form_Contact'} class="boxBlock crm-edit-address-block crm-address_{$blockId}"{/if} data-edit-params='{ldelim}"cid": "{if $contactId}{$contactId}{else}0{/if}", "class_name": "CRM_Contact_Form_Contact", "block_name":"Address", "aid": "{if $addressId.$location_type_id}{$addressId.$location_type_id}{else}0{/if}"{rdelim}'>
   {if $blockId gt 1}<fieldset><legend>{ts}Additional Address{/ts}</legend>{/if}
   <table class="form-layout-compressed crm-edit-address-form">
      {if $masterAddress.$blockId gt 0 }
@@ -52,7 +54,7 @@
         </td>
      {if $blockId gt 0}
          <td>
-             <a href="#" title="{ts}Delete Address Block{/ts}" onClick="removeBlock( 'Address', '{$blockId}' ); return false;">{ts}Delete this address{/ts}</a>
+	     <a href="#" class="delete-address-block" blockId="{$blockId}" title="{ts}Delete Address Block{/ts}">{ts}Delete this address{/ts}</a>
          </td>
      {/if}
      </tr>
@@ -81,7 +83,7 @@
 
   {if $className eq 'CRM_Contact_Form_Contact'}
       <div id="addMoreAddress{$blockId}" class="crm-add-address-wrapper">
-          <a href="#" class="button" onclick="buildAdditionalBlocks( 'Address', '{$className}' );return false;"><span><div class="icon add-icon"></div>{ts}Another Address{/ts}</span></a>
+	  <a href="#" class="button" onclick="buildAddressBlock( 'Address', '{$className}', '', 1 );return false;"><span><div class="icon add-icon"></div>{ts}Another Address{/ts}</span></a>
       </div>
   {/if}
 

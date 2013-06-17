@@ -458,6 +458,8 @@ class CRM_Contact_Form_Edit_Address {
    */
   static function setDefaultValues( &$defaults, &$form ) {
     $addressValues = array();
+    $addressId = array();
+
     if (isset($defaults['address']) && is_array($defaults['address']) &&
       !CRM_Utils_system::isNull($defaults['address'])
     ) {
@@ -482,8 +484,10 @@ class CRM_Contact_Form_Edit_Address {
 
         //check if any address is shared by any other contacts
         $masterAddress[$key] = CRM_Core_BAO_Address::checkContactSharedAddress($addressValue['id']);
+        $addressId[$addressValue['location_type_id']] = $addressValue['id'];
       }
 
+      $form->assign('addressId', $addressId);
       $form->assign('sharedAddresses', $sharedAddresses);
       $form->assign('masterAddress', $masterAddress);
       // end of shared address defaults

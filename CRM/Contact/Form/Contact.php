@@ -138,6 +138,9 @@ class CRM_Contact_Form_Contact extends CRM_Core_Form {
   function preProcess() {
     $this->_action = CRM_Utils_Request::retrieve('action', 'String', $this, FALSE, 'add');
 
+    // add DeleteAddress.js file
+    CRM_Core_Resources::singleton()
+     ->addScriptFile('civicrm', 'templates/CRM/Contact/Form/Edit/Address/DeleteAddress.js');
     $this->_dedupeButtonName = $this->getButtonName('refresh', 'dedupe');
     $this->_duplicateButtonName = $this->getButtonName('upload', 'duplicate');
 
