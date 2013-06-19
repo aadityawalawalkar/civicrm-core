@@ -43,7 +43,7 @@
         <p>{ts}Click 'Upgrade Now' if you are ready to proceed. Otherwise click 'Cancel' to return to the CiviCRM home page.{/ts}</p>
         <input type="hidden" name="action" value="begin" />
         <input type="submit" value="{ts}Upgrade Now{/ts}" name="upgrade" onclick="return confirm('{ts}Are you sure you are ready to upgrade now?{/ts}');" /> &nbsp;&nbsp;
-        <input type="button" value="{ts}Cancel{/ts}" onclick="window.location='{$cancelURL}';" />
+        <input type="button" value="{ts}Cancel{/ts}" onclick="window.location='{$civicrmDashboardURL}';" />
     </form>
   </div>
 
@@ -67,6 +67,6 @@
         <h3>Important Notes</h3>
         <p>{$afterUpgradeMessage}</p>
       {/if}
-      <p><a href="{$menuRebuildURL}" title="{ts}CiviCRM home page{/ts}" style="text-decoration: underline;">{ts}Return to CiviCRM home page.{/ts}</a></p>
+      <p><a href="{$civicrmDashboardURL}" title="{ts}CiviCRM home page{/ts}" style="text-decoration: underline;">{ts}Return to CiviCRM home page.{/ts}</a></p>
     </div>
 {/if}
