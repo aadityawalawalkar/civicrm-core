@@ -69,3 +69,6 @@ VALUES
 -- CRM-12809
 ALTER TABLE `civicrm_custom_group`
   ADD COLUMN `is_reserved` tinyint(4) DEFAULT '0' COMMENT 'Is this a reserved Custom Group?';
+
+-- CRM-12539
+UPDATE `civicrm_state_province` SET `name`='London' WHERE `id`='9999';
