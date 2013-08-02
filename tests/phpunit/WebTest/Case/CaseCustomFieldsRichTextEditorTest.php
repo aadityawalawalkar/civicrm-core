@@ -41,13 +41,11 @@ class WebTest_Case_CaseCustomFieldsRichTextEditorTest extends CiviSeleniumTestCa
 
     // create custom group1
     $this->openCiviPage('admin/custom/group', 'reset=1');
-    $this->click("newCustomDataGroup");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->clickLink("newCustomDataGroup");
     $this->type("title", $customGrp1);
     $this->select("extends[0]", "value=Case");
     $this->select("extends_1", "value=2");
-    $this->click("_qf_Group_next-bottom");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->clickLink("_qf_Group_next-bottom");
 
     // get custom group id
     $customGrpId1 = $this->urlArg('gid');
@@ -117,9 +115,11 @@ class WebTest_Case_CaseCustomFieldsRichTextEditorTest extends CiviSeleniumTestCa
 
     // Is status message correct?
     $this->assertTextPresent("Case opened successfully.", "Save successful status message didn't show up after saving!");
-    $this->click("_qf_CaseView_cancel-bottom");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
-    $this->openCiviPage('case', 'reset=1', "xpath=//table[@class='caseSelector']/tbody//tr/td[2]/a[text()='{$contactName}']/../../td[8]/a[text()='Open Case']");
+    $this->clickLink("_qf_CaseView_cancel-bottom");
+
+    $this->openCiviPage('case', 'reset=1');
+    $this->waitForElementPresent("xpath=//table[@class='caseSelector']/tbody//tr/td[2]/a[text()='{$contactName}']/../../td[8]/a[text()='Open Case']");    
+
     $this->click("xpath=//table[@class='caseSelector']/tbody//tr/td[2]/a[text()='{$contactName}']/../../td[8]/a[text()='Open Case']");
     $this->waitForElementPresent("xpath=//div[@class='ui-dialog-buttonset']/button/span[text()='Done']");
 
@@ -144,17 +144,16 @@ class WebTest_Case_CaseCustomFieldsRichTextEditorTest extends CiviSeleniumTestCa
 
     // verify if custom data is present
     $this->openCiviPage('case', 'reset=1');
-    $this->click("xpath=//table[@class='caseSelector']/tbody//tr/td[2]/a[text()='{$contactName}']/../../td[9]/span/a[text()='Manage']");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->clickLink("xpath=//table[@class='caseSelector']/tbody//tr/td[2]/a[text()='{$contactName}']/../../td[9]/span/a[text()='Manage']", "css=#{$customGrp1} .crm-accordion-header");
+
     $this->click("css=#{$customGrp1} .crm-accordion-header");
-    $this->waitForElementPresent("css=#{$customGrp1} a.button");
+
     $cusId_1 = 'custom_' . $customId[0] . '_1';
     $cusId_2 = 'custom_' . $customId[1] . '_1';
     $this->click("css=#{$customGrp1} a.button");
 
     // wait for dialog element
-    $this->waitForElementPresent("css=div.ui-dialog");
-
+    $this->waitForElementPresent("css=div.ui-dialog div.ui-dialog-titlebar");
     // check for dialog box Title
     $this->assertElementContainsText("css=div.ui-dialog div.ui-dialog-titlebar", 'Update Case Information');
 
@@ -165,7 +164,7 @@ class WebTest_Case_CaseCustomFieldsRichTextEditorTest extends CiviSeleniumTestCa
     // Wait for rich text editor element
     $this->waitForElementPresent("css=div#cke_{$cusId_2}");
 
-    $this->fillRichTextField("{$cusId_2}", $custLname);
+    $this->fillRichTextField("{$cusId_2}", $custLname, 'CKEditor');
     $this->click("_qf_CustomData_upload");
     // delete custom data
     $this->_testDeleteCustomData($customGrpId1, $customId);
@@ -184,16 +183,14 @@ class WebTest_Case_CaseCustomFieldsRichTextEditorTest extends CiviSeleniumTestCa
     $this->select("data_type_0", "value=4");
     $this->select("data_type_1", "value=TextArea");
     $this->check("is_searchable");
-    $this->click("_qf_Field_next_new-bottom");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->clickLink("_qf_Field_next_new-bottom");
 
     $this->type("label", $field2);
     $this->select("data_type_0", "value=4");
     //$this->select("data_type_1", "value=TextArea");
     $this->select("data_type_1", "value=RichTextEditor");
     $this->check("is_searchable");
-    $this->click("_qf_Field_next_new-bottom");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->clickLink("_qf_Field_next_new-bottom");
 
     // get id of custom fields
     $this->openCiviPage("admin/custom/group/field", array('reset' => 1, 'action' => 'browse', 'gid' => $customGrpId1));
@@ -210,16 +207,13 @@ class WebTest_Case_CaseCustomFieldsRichTextEditorTest extends CiviSeleniumTestCa
   function _testDeleteCustomData($customGrpId1, $customId) {
     // delete all custom data
     $this->openCiviPage("admin/custom/group/field", array('action' => 'delete', 'reset' => '1', 'gid' => $customGrpId1, 'id' => $customId[0]));
-    $this->click("_qf_DeleteField_next-bottom");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->clickLink("_qf_DeleteField_next-bottom");
 
     $this->openCiviPage("admin/custom/group/field", array('action' => 'delete', 'reset' => '1', 'gid' => $customGrpId1, 'id' => $customId[1]));
-    $this->click("_qf_DeleteField_next-bottom");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->clickLink("_qf_DeleteField_next-bottom");
 
     $this->openCiviPage("admin/custom/group", "action=delete&reset=1&id=" . $customGrpId1);
-    $this->click("_qf_DeleteGroup_next-bottom");
-    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->clickLink("_qf_DeleteGroup_next-bottom");
   }
 }
 
