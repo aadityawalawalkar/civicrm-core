@@ -38,6 +38,7 @@ function civicrm_api3_generic_getfields($apiRequest) {
   $lcase_entity = _civicrm_api_get_entity_name_from_camel($entity);
   $subentity    = CRM_Utils_Array::value('contact_type', $apiRequest['params']);
   $action       = strtolower(CRM_Utils_Array::value('action', $apiRequest['params']));
+  $sequential = empty($apiRequest['params']) ? 0 : 1;
   $apiOptions = CRM_Utils_Array::value('options', $apiRequest['params'], array());
   if ($action == 'getvalue' || $action == 'getvalue' || $action == 'getcount') {
     $action = 'get';
@@ -48,9 +49,9 @@ function civicrm_api3_generic_getfields($apiRequest) {
   }
   // determines whether to use unique field names - seem comment block above
   $unique = TRUE;
-  if (isset($results[$entity . $subentity]) && CRM_Utils_Array::value($action, $results[$entity])
-    && empty($apiOptions)) {
-    return $results[$entity . $subentity][$action];
+  if (empty($apiOptions) && isset($results[$entity . $subentity]) && isset($action, $results[$entity . $subentity])
+    && isset($action, $results[$entity . $subentity][$sequential])) {
+    return $results[$entity . $subentity][$action][$sequential];
   }
   // defaults based on data model and API policy
   switch ($action) {
@@ -86,6 +87,7 @@ function civicrm_api3_generic_getfields($apiRequest) {
         'id' => array('title' => 'Unique Identifier',
           'api.required' => 1,
           'api.aliases' => array($lcase_entity . '_id'),
+          'type' => CRM_Utils_Type::T_INT,
         ));
       break;
 
@@ -120,8 +122,8 @@ function civicrm_api3_generic_getfields($apiRequest) {
     _civicrm_api3_generic_get_metadata_options($metadata, $apiRequest['entity'], $fieldname, $fieldSpec, $fieldsToResolve);
   }
 
-  $results[$entity][$action] = civicrm_api3_create_success($metadata, $apiRequest['params'], NULL, 'getfields');
-  return $results[$entity][$action];
+  $results[$entity][$action][$sequential] = civicrm_api3_create_success($metadata, $apiRequest['params'], NULL, 'getfields');
+  return $results[$entity][$action][$sequential];
 }
 
 /**
@@ -132,7 +134,14 @@ function civicrm_api3_generic_getfields($apiRequest) {
  * @return integer count of results
  */
 function civicrm_api3_generic_getcount($apiRequest) {
+  $apiRequest['params']['options']['is_count'] = TRUE;
   $result = civicrm_api($apiRequest['entity'], 'get', $apiRequest['params']);
+  if(is_numeric (CRM_Utils_Array::value('values', $result))) {
+    return (int) $result['values'];
+  }
+  if(!isset($result['count'])) {
+    throw new API_Exception(ts('Unexpected result from getcount') . print_r($result, TRUE));
+  }
   return $result['count'];
 }
 
@@ -216,9 +225,10 @@ function civicrm_api3_generic_getoptions($apiRequest) {
   // Validate 'context' from params
   $context = CRM_Utils_Array::value('context', $apiRequest['params']);
   CRM_Core_DAO::buildOptionsContext($context);
+  unset($apiRequest['params']['context'], $apiRequest['params']['field']);
 
   $baoName = _civicrm_api3_get_BAO($apiRequest['entity']);
-  $options = $baoName::buildOptions($fieldName, $context);
+  $options = $baoName::buildOptions($fieldName, $context, $apiRequest['params']);
   if ($options === FALSE) {
     return civicrm_api3_create_error("The field '{$fieldName}' has no associated option list.");
   }
@@ -246,7 +256,7 @@ function _civicrm_api3_generic_get_metadata_options(&$metadata, $entity, $fieldn
     return;
   }
 
-  if (!empty($metadata[$fieldname]['options']) || !in_array($fieldname, $fieldsToResolve)) {
+  if (!empty($metadata[$fieldname]['options']) || (!in_array($fieldname, $fieldsToResolve) && !in_array('all', $fieldsToResolve))) {
     return;
   }
 

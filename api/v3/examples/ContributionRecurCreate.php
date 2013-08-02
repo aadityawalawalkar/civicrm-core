@@ -1,11 +1,10 @@
 <?php
-
-/*
- 
+/**
+ * Test Generated example of using contribution_recur create API
+ * *
  */
 function contribution_recur_create_example(){
-$params = array( 
-  'version' => 3,
+$params = array(
   'contact_id' => 3,
   'installments' => '12',
   'frequency_interval' => '1',
@@ -16,23 +15,32 @@ $params = array(
   'frequency_unit' => 'day',
 );
 
-  $result = civicrm_api( 'contribution_recur','create',$params );
-
-  return $result;
+try{
+  $result = civicrm_api3('contribution_recur', 'create', $params);
+}
+catch (CiviCRM_API3_Exception $e) {
+  // handle error here
+  $errorMessage = $e->getMessage();
+  $errorCode = $e->getErrorCode();
+  $errorData = $e->getExtraParams();
+  return array('error' => $errorMessage, 'error_code' => $errorCode, 'error_data' => $errorData);
 }
 
-/*
+return $result;
+}
+
+/**
  * Function returns array of result expected from previous function
  */
 function contribution_recur_create_expectedresult(){
 
-  $expectedResult = array( 
+  $expectedResult = array(
   'is_error' => 0,
   'version' => 3,
   'count' => 1,
   'id' => 1,
-  'values' => array( 
-      '1' => array( 
+  'values' => array(
+      '1' => array(
           'id' => '1',
           'contact_id' => '3',
           'amount' => '500',
@@ -41,7 +49,7 @@ function contribution_recur_create_expectedresult(){
           'frequency_interval' => '1',
           'installments' => '12',
           'start_date' => '20120101000000',
-          'create_date' => '20130204222627',
+          'create_date' => '20120130621222105',
           'modified_date' => '2012-11-14 16:02:35',
           'cancel_date' => '',
           'end_date' => '',
@@ -64,7 +72,7 @@ function contribution_recur_create_expectedresult(){
     ),
 );
 
-  return $expectedResult  ;
+  return $expectedResult;
 }
 
 

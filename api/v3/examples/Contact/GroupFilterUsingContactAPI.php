@@ -1,35 +1,43 @@
 <?php
-
-/*
- Get all from group and display contacts
+/**
+ * Test Generated example of using contact get API
+ * Get all from group and display contacts *
  */
 function contact_get_example(){
-$params = array( 
-  'filter.group_id' => array( 
+$params = array(
+  'filter.group_id' => array(
       '0' => 1,
       '1' => 26,
     ),
-  'version' => 3,
   'contact_type' => 'Individual',
 );
 
-  $result = civicrm_api( 'contact','get',$params );
-
-  return $result;
+try{
+  $result = civicrm_api3('contact', 'get', $params);
+}
+catch (CiviCRM_API3_Exception $e) {
+  // handle error here
+  $errorMessage = $e->getMessage();
+  $errorCode = $e->getErrorCode();
+  $errorData = $e->getExtraParams();
+  return array('error' => $errorMessage, 'error_code' => $errorCode, 'error_data' => $errorData);
 }
 
-/*
+return $result;
+}
+
+/**
  * Function returns array of result expected from previous function
  */
 function contact_get_expectedresult(){
 
-  $expectedResult = array( 
+  $expectedResult = array(
   'is_error' => 0,
   'version' => 3,
   'count' => 1,
   'id' => 1,
-  'values' => array( 
-      '1' => array( 
+  'values' => array(
+      '1' => array(
           'contact_id' => '1',
           'contact_type' => 'Individual',
           'contact_sub_type' => '',
@@ -58,12 +66,6 @@ function contact_get_expectedresult(){
           'organization_name' => '',
           'sic_code' => '',
           'contact_is_deleted' => 0,
-          'gender_id' => '',
-          'gender' => '',
-          'prefix_id' => '',
-          'prefix' => '',
-          'suffix_id' => '',
-          'suffix' => '',
           'current_employer' => '',
           'address_id' => '',
           'street_address' => '',
@@ -95,7 +97,7 @@ function contact_get_expectedresult(){
     ),
 );
 
-  return $expectedResult  ;
+  return $expectedResult;
 }
 
 

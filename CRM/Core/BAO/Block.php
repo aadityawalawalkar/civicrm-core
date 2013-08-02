@@ -310,7 +310,7 @@ class CRM_Core_BAO_Block {
 
               if ($blockName == 'phone') {
                 $phoneTypeBlockValue = CRM_Utils_Array::value('phoneTypeId', $blockValue);
-                if ($phoneTypeBlockValue == $value['phone_type_id']) {
+                if ($phoneTypeBlockValue == CRM_Utils_Array::value('phone_type_id', $value)) {
                   $valueId = TRUE;
                 }
               }
@@ -434,19 +434,7 @@ class CRM_Core_BAO_Block {
    * @static
    */
   public static function handlePrimary(&$params, $class) {
-    switch ($class) {
-      case 'CRM_Core_BAO_Phone':
-        $table = 'civicrm_phone';
-        break;
-
-      case 'CRM_Core_BAO_Email':
-        $table = 'civicrm_email';
-        break;
-
-      case 'CRM_Core_BAO_Address':
-        $table = 'civicrm_address';
-        break;
-    }
+    $table = CRM_Core_DAO_AllCoreTables::getTableForClass($class);
     // contact_id in params might be empty or the string 'null' so cast to integer
     $contactId = (int) CRM_Utils_Array::value('contact_id', $params);
     // If id is set & we haven't been passed a contact_id, retrieve it

@@ -1,5 +1,4 @@
 <?php
-
 /*
  +--------------------------------------------------------------------+
  | CiviCRM version 4.3                                                |
@@ -40,7 +39,7 @@ class api_v3_UFFieldTest extends CiviUnitTestCase {
   protected $_ufGroupId = 11;
   protected $_ufFieldId;
   protected $_contactId = 69;
-  protected $_apiversion;
+  protected $_apiversion = 3;
   protected $_params;
   protected $_entity = 'uf_field';
   public $_eNoticeCompliant = TRUE;
@@ -58,7 +57,6 @@ class api_v3_UFFieldTest extends CiviUnitTestCase {
       )
     );
 
-    $this->_apiversion = 3;
     $op = new PHPUnit_Extensions_Database_Operation_Insert;
     $op->execute(
       $this->_dbconn,
@@ -66,7 +64,7 @@ class api_v3_UFFieldTest extends CiviUnitTestCase {
     );
     $this->_sethtmlGlobals();
 
-    civicrm_api('uf_field', 'getfields', array('version' => 3, 'cache_clear' => 1));
+    $this->callAPISuccess('uf_field', 'getfields', array('cache_clear' => 1));
 
     $this->_params = array(
       'field_name' => 'phone',
@@ -78,7 +76,6 @@ class api_v3_UFFieldTest extends CiviUnitTestCase {
       'is_active' => 1,
       'location_type_id' => 1,
       'phone_type_id' => 1,
-      'version' => $this->_apiversion,
       'uf_group_id' => $this->_ufGroupId,
     );
   }
@@ -100,11 +97,8 @@ class api_v3_UFFieldTest extends CiviUnitTestCase {
    */
   public function testCreateUFField() {
     $params = $this->_params; // copy
-    $ufField = civicrm_api('uf_field', 'create', $params);
-    $this->documentMe($params, $ufField, __FUNCTION__, __FILE__);
-    unset($params['version']);
+    $ufField = $this->callAPIAndDocument('uf_field', 'create', $params, __FUNCTION__, __FILE__);
     unset($params['uf_group_id']);
-    $this->assertAPISuccess($ufField, " in line " . __LINE__);
     $this->_ufFieldId = $ufField['id'];
     foreach ($params as $key => $value) {
       $this->assertEquals($ufField['values'][$ufField['id']][$key], $params[$key]);
@@ -199,15 +193,12 @@ class api_v3_UFFieldTest extends CiviUnitTestCase {
     );
 
     $params = array(
-      'version' => $this->_apiversion,
       'uf_group_id' => $this->_ufGroupId,
       'option.autoweight' => FALSE,
       'values' => $baseFields,
     );
 
-    $result = civicrm_api('uf_field', 'replace', $params);
-    $this->assertAPISuccess($result);
-    $this->documentMe($params, $result, __FUNCTION__, __FILE__);
+    $result = $this->callAPIAndDocument('uf_field', 'replace', $params, __FUNCTION__, __FILE__);
     $inputsByName = CRM_Utils_Array::index(array('field_name'), $params['values']);
     $this->assertEquals(count($params['values']), count($result['values']));
     foreach ($result['values'] as $outUfField) {
@@ -224,177 +215,5 @@ class api_v3_UFFieldTest extends CiviUnitTestCase {
         );
       }
     }
-  }
-
-  /**
-   * FIXME: something NULLs $GLOBALS['_HTML_QuickForm_registered_rules'] when the tests are ran all together
-   * (NB unclear if this is still required)
-   */
-  function _sethtmlGlobals() {
-    $GLOBALS['_HTML_QuickForm_registered_rules'] = array(
-      'required' => array(
-        'html_quickform_rule_required',
-        'HTML/QuickForm/Rule/Required.php'
-      ),
-      'maxlength' => array(
-        'html_quickform_rule_range',
-        'HTML/QuickForm/Rule/Range.php'
-      ),
-      'minlength' => array(
-        'html_quickform_rule_range',
-        'HTML/QuickForm/Rule/Range.php'
-      ),
-      'rangelength' => array(
-        'html_quickform_rule_range',
-        'HTML/QuickForm/Rule/Range.php'
-      ),
-      'email' => array(
-        'html_quickform_rule_email',
-        'HTML/QuickForm/Rule/Email.php'
-      ),
-      'regex' => array(
-        'html_quickform_rule_regex',
-        'HTML/QuickForm/Rule/Regex.php'
-      ),
-      'lettersonly' => array(
-        'html_quickform_rule_regex',
-        'HTML/QuickForm/Rule/Regex.php'
-      ),
-      'alphanumeric' => array(
-        'html_quickform_rule_regex',
-        'HTML/QuickForm/Rule/Regex.php'
-      ),
-      'numeric' => array(
-        'html_quickform_rule_regex',
-        'HTML/QuickForm/Rule/Regex.php'
-      ),
-      'nopunctuation' => array(
-        'html_quickform_rule_regex',
-        'HTML/QuickForm/Rule/Regex.php'
-      ),
-      'nonzero' => array(
-        'html_quickform_rule_regex',
-        'HTML/QuickForm/Rule/Regex.php'
-      ),
-      'callback' => array(
-        'html_quickform_rule_callback',
-        'HTML/QuickForm/Rule/Callback.php'
-      ),
-      'compare' => array(
-        'html_quickform_rule_compare',
-        'HTML/QuickForm/Rule/Compare.php'
-      )
-    );
-    // FIXME: …ditto for $GLOBALS['HTML_QUICKFORM_ELEMENT_TYPES']
-    $GLOBALS['HTML_QUICKFORM_ELEMENT_TYPES'] = array(
-      'group' => array(
-        'HTML/QuickForm/group.php',
-        'HTML_QuickForm_group'
-      ),
-      'hidden' => array(
-        'HTML/QuickForm/hidden.php',
-        'HTML_QuickForm_hidden'
-      ),
-      'reset' => array(
-        'HTML/QuickForm/reset.php',
-        'HTML_QuickForm_reset'
-      ),
-      'checkbox' => array(
-        'HTML/QuickForm/checkbox.php',
-        'HTML_QuickForm_checkbox'
-      ),
-      'file' => array(
-        'HTML/QuickForm/file.php',
-        'HTML_QuickForm_file'
-      ),
-      'image' => array(
-        'HTML/QuickForm/image.php',
-        'HTML_QuickForm_image'
-      ),
-      'password' => array(
-        'HTML/QuickForm/password.php',
-        'HTML_QuickForm_password'
-      ),
-      'radio' => array(
-        'HTML/QuickForm/radio.php',
-        'HTML_QuickForm_radio'
-      ),
-      'button' => array(
-        'HTML/QuickForm/button.php',
-        'HTML_QuickForm_button'
-      ),
-      'submit' => array(
-        'HTML/QuickForm/submit.php',
-        'HTML_QuickForm_submit'
-      ),
-      'select' => array(
-        'HTML/QuickForm/select.php',
-        'HTML_QuickForm_select'
-      ),
-      'hiddenselect' => array(
-        'HTML/QuickForm/hiddenselect.php',
-        'HTML_QuickForm_hiddenselect'
-      ),
-      'text' => array(
-        'HTML/QuickForm/text.php',
-        'HTML_QuickForm_text'
-      ),
-      'textarea' => array(
-        'HTML/QuickForm/textarea.php',
-        'HTML_QuickForm_textarea'
-      ),
-      'fckeditor' => array(
-        'HTML/QuickForm/fckeditor.php',
-        'HTML_QuickForm_FCKEditor'
-      ),
-      'tinymce' => array(
-        'HTML/QuickForm/tinymce.php',
-        'HTML_QuickForm_TinyMCE'
-      ),
-      'dojoeditor' => array(
-        'HTML/QuickForm/dojoeditor.php',
-        'HTML_QuickForm_dojoeditor'
-      ),
-      'link' => array(
-        'HTML/QuickForm/link.php',
-        'HTML_QuickForm_link'
-      ),
-      'advcheckbox' => array(
-        'HTML/QuickForm/advcheckbox.php',
-        'HTML_QuickForm_advcheckbox'
-      ),
-      'date' => array(
-        'HTML/QuickForm/date.php',
-        'HTML_QuickForm_date'
-      ),
-      'static' => array(
-        'HTML/QuickForm/static.php',
-        'HTML_QuickForm_static'
-      ),
-      'header' => array(
-        'HTML/QuickForm/header.php',
-        'HTML_QuickForm_header'
-      ),
-      'html' => array(
-        'HTML/QuickForm/html.php',
-        'HTML_QuickForm_html'
-      ),
-      'hierselect' => array(
-        'HTML/QuickForm/hierselect.php',
-        'HTML_QuickForm_hierselect'
-      ),
-      'autocomplete' => array(
-        'HTML/QuickForm/autocomplete.php',
-        'HTML_QuickForm_autocomplete'
-      ),
-      'xbutton' => array(
-        'HTML/QuickForm/xbutton.php',
-        'HTML_QuickForm_xbutton'
-      ),
-      'advmultiselect' => array(
-        'HTML/QuickForm/advmultiselect.php',
-        'HTML_QuickForm_advmultiselect'
-      )
-    );
   }
 }

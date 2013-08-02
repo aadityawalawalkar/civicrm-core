@@ -77,6 +77,15 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
   protected $_contactFields = array();
 
   /**
+   * Fields array of fields in the batch profile
+   * (based on the uf_field table data)
+   * (this can't be protected as it is passed into the CRM_Contact_Form_Task_Batch::parseStreetAddress function
+   * (although a future refactoring might hopefully change that so it uses the api & the function is not
+   * required
+   * @var array
+   */
+  public $_fields = array();
+  /**
    * build all the data structures needed to build the form
    *
    * @return void
@@ -97,6 +106,8 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
       // get the profile id associted with this batch type
       $this->_profileId = CRM_Batch_BAO_Batch::getProfileId($this->_batchInfo['type_id']);
     }
+    CRM_Core_Resources::singleton()
+    ->addSetting(array('batch' => array('type_id' => $this->_batchInfo['type_id'])));
   }
 
   /**
@@ -251,6 +262,16 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
       }
     }
 
+    // if contact name is set for a row using autocomplete widget then make sure contact id exists, CRM-13078
+    // I was not able to replicate this on my local but adding this check and hopefully it will fix the issue.
+    if (!empty($params['primary_contact'])) {
+      foreach($params['primary_contact'] as $rowIndex => $contactName) {
+        if (empty($params['primary_contact_select_id'][$rowIndex])) {
+          $errors['primary_contact['.$rowIndex.']'] = ts('Please select a valid contact.');
+        }
+      }
+    }
+
     if ($batchTotal != $self->_batchInfo['total']) {
       $self->assign('batchAmountMismatch', TRUE);
       $errors['_qf_defaults'] = ts('Total for amounts entered below does not match the expected batch total.');
@@ -371,8 +392,8 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
     );
 
     // get the price set associated with offline contribution record.
-    $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_Set', 'default_contribution_amount', 'id', 'name');
-    $this->_priceSet = current(CRM_Price_BAO_Set::getSetDetail($priceSetId));
+    $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', 'default_contribution_amount', 'id', 'name');
+    $this->_priceSet = current(CRM_Price_BAO_PriceSet::getSetDetail($priceSetId));
     $fieldID = key($this->_priceSet['fields']);
 
     if (isset($params['field'])) {
@@ -439,7 +460,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
         $value['price_'.$fieldID] = 1;
 
         $lineItem = array();
-        CRM_Price_BAO_Set::processAmount($this->_priceSet['fields'], $value, $lineItem[$priceSetId]);
+        CRM_Price_BAO_PriceSet::processAmount($this->_priceSet['fields'], $value, $lineItem[$priceSetId]);
 
         //unset amount level since we always use quick config price set
         unset($value['amount_level']);
@@ -519,8 +540,8 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
     );
 
     // get the price set associated with offline memebership
-    $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_Set', 'default_membership_type_amount', 'id', 'name');
-    $this->_priceSet = $priceSets = current(CRM_Price_BAO_Set::getSetDetail($priceSetId));
+    $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', 'default_membership_type_amount', 'id', 'name');
+    $this->_priceSet = $priceSets = current(CRM_Price_BAO_PriceSet::getSetDetail($priceSetId));
 
     if (isset($params['field'])) {
       $customFields = array();
@@ -602,7 +623,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
         }
 
         // handle soft credit
-        if (CRM_Utils_Array::value($key, $params['soft_credit_contact_select_id']) && CRM_Utils_Array::value($key, $params['soft_credit_amount'])) {
+        if (is_array(CRM_Utils_Array::value('soft_credit_contact_select_id', $params)) && CRM_Utils_Array::value($key, $params['soft_credit_contact_select_id']) && CRM_Utils_Array::value($key, $params['soft_credit_amount'])) {
           $value['soft_credit'][$key]['contact_id'] = $params['soft_credit_contact_select_id'][$key];
           $value['soft_credit'][$key]['amount'] = CRM_Utils_Rule::cleanMoney($params['soft_credit_amount'][$key]);
         }
@@ -627,7 +648,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
         );
 
         $editedResults = array();
-        CRM_Price_BAO_Field::retrieve($editedFieldParams, $editedResults);
+        CRM_Price_BAO_PriceField::retrieve($editedFieldParams, $editedResults);
 
         if (!empty($editedResults)) {
           unset($this->_priceSet['fields']);
@@ -640,7 +661,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
           );
 
           $editedResults = array();
-          CRM_Price_BAO_FieldValue::retrieve($editedFieldParams, $editedResults);
+          CRM_Price_BAO_PriceFieldValue::retrieve($editedFieldParams, $editedResults);
           $this->_priceSet['fields'][$fid]['options'][$editedResults['id']] = $priceSets['fields'][$fid]['options'][$editedResults['id']];
           if (CRM_Utils_Array::value('total_amount', $value)) {
             $this->_priceSet['fields'][$fid]['options'][$editedResults['id']]['amount'] = $value['total_amount'];
@@ -650,7 +671,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
           $value['price_' . $fieldID] = $editedResults['id'];
 
           $lineItem = array();
-          CRM_Price_BAO_Set::processAmount($this->_priceSet['fields'],
+          CRM_Price_BAO_PriceSet::processAmount($this->_priceSet['fields'],
             $value, $lineItem[$priceSetId]
           );
 
@@ -726,6 +747,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
         }
       }
     }
+    return TRUE;
   }
 
   /**
@@ -746,6 +768,15 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
     CRM_Contact_BAO_Contact::createProfileContact($value, $this->_fields,
       $value['contact_id']
     );
+  }
+  /**
+   * Function exists purely for unit testing purposes. If you feel tempted to use this in live code
+   * then it probably means there is some functionality that needs to be moved
+   * out of the form layer
+   * @param unknown_type $params
+   */
+  function testProcessMembership($params) {
+    return $this->processMembership($params);
   }
 }
 

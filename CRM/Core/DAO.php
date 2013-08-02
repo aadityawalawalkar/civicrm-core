@@ -999,12 +999,7 @@ FROM   civicrm_domain
       }
     }
 
-    // CRM-11582
-    foreach($tr as $key => $value) {
-      $key   = preg_quote($key);
-      $query = preg_replace("/$key\b/", $value, $query);
-    }
-    return $query;
+    return strtr($query, $tr);
   }
 
   static function freeResult($ids = NULL) {
@@ -1322,10 +1317,12 @@ SELECT contact_id
             continue;
           }
           // Pick an option value if needed
-          $options = $daoName::buildOptions($dbName);
-          if ($options) {
-            $object->$dbName = key($options);
-            continue;
+          if ($value['type'] !== CRM_Utils_Type::T_BOOLEAN) {
+            $options = $daoName::buildOptions($dbName, 'create');
+            if ($options) {
+              $object->$dbName = key($options);
+              continue;
+            }
           }
 
           switch ($value['type']) {
@@ -1335,7 +1332,6 @@ SELECT contact_id
               $object->$dbName = $counter;
               break;
 
-            case CRM_Utils_Type::T_BOOL:
             case CRM_Utils_Type::T_BOOLEAN:
               if (isset($value['default'])) {
                 $object->$dbName = $value['default'];
@@ -1763,14 +1759,37 @@ EOS;
    * This function can be overridden by each BAO to add more logic related to context.
    * The overriding function will generally call the lower-level CRM_Core_PseudoConstant::get
    *
-   * @param String $fieldName
-   * @param String $context: @see CRM_Core_DAO::buildOptionsContext
-   * @param Array  $props: whatever is known about this bao object
+   * @param string $fieldName
+   * @param string $context: @see CRM_Core_DAO::buildOptionsContext
+   * @param array  $props: whatever is known about this bao object
    */
   public static function buildOptions($fieldName, $context = NULL, $props = array()) {
     // If a given bao does not override this function
     $baoName = get_called_class();
     return CRM_Core_PseudoConstant::get($baoName, $fieldName, array(), $context);
+  }
+
+  /**
+   * Populate option labels for this object's fields.
+   *
+   * @throws exception if called directly on the base class
+   */
+  public function getOptionLabels() {
+    $fields = $this->fields();
+    if ($fields === NULL) {
+      throw new exception ('Cannot call getOptionLabels on CRM_Core_DAO');
+    }
+    foreach ($fields as $field) {
+      $name = CRM_Utils_Array::value('name', $field);
+      if ($name && isset($this->$name)) {
+        $label = CRM_Core_PseudoConstant::getLabel(get_class($this), $name, $this->$name);
+        if ($label !== FALSE) {
+          // Append 'label' onto the field name
+          $labelName = $name . '_label';
+          $this->$labelName = $label;
+        }
+      }
+    }
   }
 
   /**

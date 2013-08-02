@@ -1,52 +1,59 @@
 <?php
-
-/*
- utilises field names
+/**
+ * Test Generated example of using custom_value get API
+ * utilises field names *
  */
 function custom_value_get_example(){
-$params = array( 
+$params = array(
   'id' => 2,
-  'version' => 3,
   'entity_id' => 2,
   'format.field_names' => 1,
 );
 
-  $result = civicrm_api( 'custom_value','get',$params );
-
-  return $result;
+try{
+  $result = civicrm_api3('custom_value', 'get', $params);
+}
+catch (CiviCRM_API3_Exception $e) {
+  // handle error here
+  $errorMessage = $e->getMessage();
+  $errorCode = $e->getErrorCode();
+  $errorData = $e->getExtraParams();
+  return array('error' => $errorMessage, 'error_code' => $errorCode, 'error_data' => $errorData);
 }
 
-/*
+return $result;
+}
+
+/**
  * Function returns array of result expected from previous function
  */
 function custom_value_get_expectedresult(){
 
-  $expectedResult = array( 
+  $expectedResult = array(
   'is_error' => 0,
   'version' => 3,
   'count' => 4,
-  'values' => array( 
-      'mySingleField' => array( 
+  'values' => array(
+      'mySingleField' => array(
           'entity_id' => '2',
           'latest' => 'value 1',
           'id' => 'mySingleField',
-          '0' => 'value 1',
         ),
-      'Cust_Field' => array( 
+      'Cust_Field' => array(
           'entity_id' => '2',
           'latest' => 'coffee',
           'id' => 'Cust_Field',
           '1' => '',
           '2' => 'coffee',
         ),
-      'field_2' => array( 
+      'field_2' => array(
           'entity_id' => '2',
           'latest' => 'value 4',
           'id' => 'field_2',
           '1' => '',
           '2' => 'value 4',
         ),
-      'field_3' => array( 
+      'field_3' => array(
           'entity_id' => '2',
           'latest' => '',
           'id' => 'field_3',
@@ -56,7 +63,7 @@ function custom_value_get_expectedresult(){
     ),
 );
 
-  return $expectedResult  ;
+  return $expectedResult;
 }
 
 

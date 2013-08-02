@@ -44,10 +44,12 @@ var cj = jQuery;
 function ts(text, params) {
   "use strict";
   text = CRM.strings[text] || text;
-  if (params && typeof(params) === 'object') {
+  if (typeof(params) === 'object') {
     for (var i in params) {
-      // sprintf emulation: escape % characters in the replacements to avoid conflicts
-      text = text.replace(new RegExp('%' + i, 'g'), params[i].replace(/%/g, '%-crmescaped-'));
+      if (typeof(params[i]) === 'string' || typeof(params[i]) === 'number') {
+        // sprintf emulation: escape % characters in the replacements to avoid conflicts
+        text = text.replace(new RegExp('%' + i, 'g'), String(params[i]).replace(/%/g, '%-crmescaped-'));
+      }
     }
     return text.replace(/%-crmescaped-/g, '%');
   }
@@ -424,10 +426,6 @@ function popUp(URL) {
   eval("page" + id + " = window.open(URL, '" + id + "', 'toolbar=0,scrollbars=1,location=0,statusbar=0,menubar=0,resizable=0,width=640,height=420,left = 202,top = 184');");
 }
 
-function imagePopUp(path) {
-  window.open(path, 'popupWindow', 'toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,resizable=yes,copyhistory=no,screenX=150,screenY=150,top=150,left=150');
-}
-
 /**
  * Function to show / hide the row in optionFields
  *
@@ -712,6 +710,7 @@ CRM.validate = CRM.validate || {
       message: ts('Are you sure you want to continue?'),
       resizable: false,
       modal: true,
+      width: 'auto',
       close: function () {
         $(dialog).remove();
       },
@@ -822,6 +821,20 @@ CRM.validate = CRM.validate || {
       messagesFromMarkup.call($('#crm-container'));
       $('#crm-container').on('crmFormLoad', '*', messagesFromMarkup);
     }
+
+    // bind the event for image popup
+    $('body').on('click', 'a.crm-image-popup', function() {
+      var o = $('<div class="crm-container crm-custom-image-popup"><img src=' + $(this).attr('href') + '></div>');
+
+      CRM.confirm('',
+        {
+          title: ts('Preview'),
+          message: o
+        },
+        ts('Done')
+      );
+      return false;
+    });
   });
 
   $.fn.crmAccordions = function (speed) {

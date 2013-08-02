@@ -1,30 +1,38 @@
 <?php
-
-/*
- 
+/**
+ * Test Generated example of using profile get API
+ * *
  */
 function profile_get_example(){
-$params = array( 
+$params = array(
   'profile_id' => 25,
   'contact_id' => 1,
-  'version' => 3,
 );
 
-  $result = civicrm_api( 'profile','get',$params );
-
-  return $result;
+try{
+  $result = civicrm_api3('profile', 'get', $params);
+}
+catch (CiviCRM_API3_Exception $e) {
+  // handle error here
+  $errorMessage = $e->getMessage();
+  $errorCode = $e->getErrorCode();
+  $errorData = $e->getExtraParams();
+  return array('error' => $errorMessage, 'error_code' => $errorCode, 'error_data' => $errorData);
 }
 
-/*
+return $result;
+}
+
+/**
  * Function returns array of result expected from previous function
  */
 function profile_get_expectedresult(){
 
-  $expectedResult = array( 
+  $expectedResult = array(
   'is_error' => 0,
   'version' => 3,
   'count' => 1,
-  'values' => array( 
+  'values' => array(
       'first_name' => 'abc1',
       'last_name' => 'xyz1',
       'email-Primary' => 'abc1.xyz1@yahoo.com',
@@ -34,7 +42,7 @@ function profile_get_expectedresult(){
     ),
 );
 
-  return $expectedResult  ;
+  return $expectedResult;
 }
 
 

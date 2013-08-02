@@ -1,31 +1,40 @@
 <?php
-
-/*
- 
+/**
+ * Test Generated example of using event get API
+ * *
  */
 function event_get_example(){
-$params = array( 
+$params = array(
   'event_title' => 'Annual CiviCRM meet',
-  'version' => 3,
+  'sequential' => true,
 );
 
-  $result = civicrm_api( 'event','get',$params );
-
-  return $result;
+try{
+  $result = civicrm_api3('event', 'get', $params);
+}
+catch (CiviCRM_API3_Exception $e) {
+  // handle error here
+  $errorMessage = $e->getMessage();
+  $errorCode = $e->getErrorCode();
+  $errorData = $e->getExtraParams();
+  return array('error' => $errorMessage, 'error_code' => $errorCode, 'error_data' => $errorData);
 }
 
-/*
+return $result;
+}
+
+/**
  * Function returns array of result expected from previous function
  */
 function event_get_expectedresult(){
 
-  $expectedResult = array( 
+  $expectedResult = array(
   'is_error' => 0,
   'version' => 3,
   'count' => 1,
   'id' => 1,
-  'values' => array( 
-      '1' => array( 
+  'values' => array(
+      '0' => array(
           'id' => '1',
           'title' => 'Annual CiviCRM meet',
           'event_title' => 'Annual CiviCRM meet',
@@ -46,13 +55,13 @@ function event_get_expectedresult(){
           'is_multiple_registrations' => 0,
           'allow_same_participant_emails' => 0,
           'is_template' => 0,
-          'created_date' => '2013-02-04 22:31:22',
+          'created_date' => '2013-07-28 08:49:19',
           'is_share' => '1',
         ),
     ),
 );
 
-  return $expectedResult  ;
+  return $expectedResult;
 }
 
 

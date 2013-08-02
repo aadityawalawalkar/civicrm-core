@@ -124,7 +124,7 @@ function _civicrm_api3_contribution_create_spec(&$params) {
   $params['skipRecentView'] = array(
     'name' => 'skipRecentView',
     'title' => 'Skip adding to recent view',
-    'type' => 1,
+    'type' => CRM_Utils_Type::T_BOOLEAN,
     'description' => 'Do not add to recent view (setting this improves performance)',
   );
   $params['skipLineItem'] = array(
@@ -261,34 +261,7 @@ function _civicrm_api3_contribution_get_spec(&$params) {
  */
 function _civicrm_api3_contribute_format_params($params, &$values, $create = FALSE) {
 //legacy way of formatting from v2 api - v3 way is to define metadata & do it in the api layer
-    require_once 'api/v3/utils.php';
   _civicrm_api3_filter_fields_for_bao('Contribution', $params, $values);
-
-  foreach ($params as $key => $value) {
-    // ignore empty values or empty arrays etc
-    if (CRM_Utils_System::isNull($value)) {
-      continue;
-    }
-    // note that this is legacy handling - these should be handled at the api layer
-    switch ($key) {
-      case 'financial_type' :// should be dealt with either api pseudoconstant in validate_integer fn
-        $contributionTypeId = CRM_Utils_Array::key ( ucfirst ( $value ), CRM_Contribute_PseudoConstant::financialType() );
-        if ($contributionTypeId) {
-          if (CRM_Utils_Array::value('financial_type_id', $values) && $contributionTypeId != $values['financial_type_id']) {
-            throw new Exception("Mismatched Financial Type and Financial Type Id");
-          }
-          $values ['financial_type_id'] = $contributionTypeId;
-        }
-        else {
-          throw new Exception("Invalid Financial Type");
-        }
-        break;
-
-      default:
-        break;
-    }
-  }
-
   return array();
 }
 
@@ -397,4 +370,54 @@ function _civicrm_api3_contribution_sendconfirmation_spec(&$params) {
     'title' => 'From Email (required until someone provides a patch :-)',
 
   );
+}
+
+/**
+ * Complete an existing (pending) transaction, updating related entities (participant, membership, pledge etc)
+ * and taking any complete actions from the contribution page (e.g. send receipt)
+ *
+ * @todo - most of this should live in the BAO layer but as we want it to be an addition
+ * to 4.3 which is already stable we should add it to the api layer & re-factor into the BAO layer later
+ *
+ * @param array $params input parameters
+ * {@getfields Contribution_completetransaction}
+ * @return array  Api result array
+ * @static void
+ * @access public
+ *
+ */
+function civicrm_api3_contribution_completetransaction(&$params) {
+
+  $input = $ids = array();
+  $contribution = new CRM_Contribute_BAO_Contribution();
+  $contribution->id = $params['id'];
+  $contribution->find(TRUE);
+  if(!$contribution->id == $params['id']){
+    throw new API_Exception('A valid contribution ID is required', 'invalid_data');
+  }
+  try {
+    if(!$contribution->loadRelatedObjects($input, $ids, FALSE, TRUE)){
+      throw new API_Exception('failed to load related objects');
+    }
+    $objects = $contribution->_relatedObjects;
+    $objects['contribution'] = &$contribution;
+    $input['component'] = $contribution->_component;
+    $input['is_test'] = $contribution->is_test;
+    $input['trxn_id']= $contribution->trxn_id;
+    $input['amount'] = $contribution->total_amount;
+    if(isset($params['is_email_receipt'])){
+      $input['is_email_receipt'] = $params['is_email_receipt'];
+    }
+    // @todo required for base ipn but problematic as api layer handles this
+    $transaction = new CRM_Core_Transaction();
+    $ipn = new CRM_Core_Payment_BaseIPN();
+    $ipn->completeTransaction($input, $ids, $objects, $transaction);
+  }
+  catch(Exception$e) {
+    throw new API_Exception('failed to load related objects' . $e->getMessage() . "\n" . $e->getTraceAsString());
+  }
+}
+
+function _civicrm_api3_contribution_completetransaction(&$params) {
+
 }

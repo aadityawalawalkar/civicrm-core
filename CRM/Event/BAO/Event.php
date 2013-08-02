@@ -90,9 +90,12 @@ class CRM_Event_BAO_Event extends CRM_Event_DAO_Event {
    */
   static function add(&$params) {
     CRM_Utils_System::flushCache();
-
+    $financialTypeId = NULL;
     if (CRM_Utils_Array::value('id', $params)) {
       CRM_Utils_Hook::pre('edit', 'Event', $params['id'], $params);
+      if (!CRM_Utils_Array::value('skipFinancialType', $params)) {
+        $financialTypeId = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $params['id'], 'financial_type_id');
+      }
     }
     else {
       CRM_Utils_Hook::pre('create', 'Event', NULL, $params);
@@ -109,7 +112,10 @@ class CRM_Event_BAO_Event extends CRM_Event_DAO_Event {
     else {
       CRM_Utils_Hook::post('create', 'Event', $event->id, $event);
     }
-
+    if ($financialTypeId && CRM_Utils_Array::value('financial_type_id', $params) 
+      && $financialTypeId != $params['financial_type_id']) {
+      CRM_Price_BAO_FieldValue::updateFinancialType($params['id'], 'civicrm_event', $params['financial_type_id']);
+    }
     return $result;
   }
 
@@ -200,7 +206,7 @@ class CRM_Event_BAO_Event extends CRM_Event_DAO_Event {
     }
 
     // price set cleanup, CRM-5527
-    CRM_Price_BAO_Set::removeFrom('civicrm_event', $id);
+    CRM_Price_BAO_PriceSet::removeFrom('civicrm_event', $id);
 
     $event = new CRM_Event_DAO_Event();
     $event->id = $id;
@@ -339,8 +345,8 @@ WHERE      civicrm_event.is_active = 1 AND
     }
 
     //get the participant status type values.
-    $query        = 'SELECT id, name, class FROM civicrm_participant_status_type';
-    $status       = CRM_Core_DAO::executeQuery($query);
+    $query = 'SELECT id, name, class FROM civicrm_participant_status_type';
+    $status = CRM_Core_DAO::executeQuery($query);
     $statusValues = array();
     while ($status->fetch()) {
       $statusValues[$status->id]['id'] = $status->id;
@@ -380,10 +386,15 @@ LIMIT      0, 10
     $eventParticipant = array();
 
     $properties = array(
-      'eventTitle' => 'event_title', 'isPublic' => 'is_public',
-      'maxParticipants' => 'max_participants', 'startDate' => 'start_date',
-      'endDate' => 'end_date', 'eventType' => 'event_type',
-      'isMap' => 'is_map', 'participants' => 'participants',
+      'id' => 'id',
+      'eventTitle' => 'event_title',
+      'isPublic' => 'is_public',
+      'maxParticipants' => 'max_participants',
+      'startDate' => 'start_date',
+      'endDate' => 'end_date',
+      'eventType' => 'event_type',
+      'isMap' => 'is_map',
+      'participants' => 'participants',
       'notCountedDueToRole' => 'notCountedDueToRole',
       'notCountedDueToStatus' => 'notCountedDueToStatus',
       'notCountedParticipants' => 'notCountedParticipants',
@@ -408,9 +419,9 @@ LIMIT      0, 10
 
           case 'is_map':
             if ($dao->$name && $config->mapAPIKey) {
-              $values             = array();
-              $ids                = array();
-              $params             = array('entity_id' => $dao->id, 'entity_table' => 'civicrm_event');
+              $values = array();
+              $ids = array();
+              $params = array('entity_id' => $dao->id, 'entity_table' => 'civicrm_event');
               $values['location'] = CRM_Core_BAO_Location::getValues($params, TRUE);
               if (is_numeric(CRM_Utils_Array::value('geo_code_1', $values['location']['address'][1])) ||
                 ($config->mapGeoCoding &&
@@ -514,9 +525,9 @@ LIMIT      0, 10
       }
     }
 
-    $countedRoles     = CRM_Event_PseudoConstant::participantRole(NULL, 'filter = 1');
-    $nonCountedRoles  = CRM_Event_PseudoConstant::participantRole(NULL, '( filter = 0 OR filter IS NULL )');
-    $countedStatus    = CRM_Event_PseudoConstant::participantStatus(NULL, 'is_counted = 1');
+    $countedRoles = CRM_Event_PseudoConstant::participantRole(NULL, 'filter = 1');
+    $nonCountedRoles = CRM_Event_PseudoConstant::participantRole(NULL, '( filter = 0 OR filter IS NULL )');
+    $countedStatus = CRM_Event_PseudoConstant::participantStatus(NULL, 'is_counted = 1');
     $nonCountedStatus = CRM_Event_PseudoConstant::participantStatus(NULL, '( is_counted = 0 OR is_counted IS NULL )');
 
     $countedStatusANDRoles = array_merge($countedStatus, $countedRoles);
@@ -866,7 +877,7 @@ WHERE civicrm_event.is_active = 1
          $fieldsFix
        );
     }
-    CRM_Price_BAO_Set::copyPriceSet('civicrm_event', $id, $copyEvent->id);
+    CRM_Price_BAO_PriceSet::copyPriceSet('civicrm_event', $id, $copyEvent->id);
     $copyUF = &CRM_Core_DAO::copyGeneric('CRM_Core_DAO_UFJoin',
       array(
         'entity_id' => $id,
@@ -967,7 +978,7 @@ WHERE civicrm_event.is_active = 1
   static function usesPriceSet($id) {
     static $usesPriceSet = array();
     if (!array_key_exists($id, $usesPriceSet)) {
-      $usesPriceSet[$id] = CRM_Price_BAO_Set::getFor('civicrm_event', $id);
+      $usesPriceSet[$id] = CRM_Price_BAO_PriceSet::getFor('civicrm_event', $id);
     }
     return $usesPriceSet[$id];
   }
@@ -1320,6 +1331,7 @@ WHERE civicrm_event.is_active = 1
    */
   static function displayProfile(&$params, $gid, &$groupTitle, &$values, &$profileFields = array()) {
     if ($gid) {
+      $config = CRM_Core_Config::singleton();
       $session = CRM_Core_Session::singleton();
       $contactID = $session->get('userID');
       if ($contactID) {
@@ -1361,7 +1373,8 @@ WHERE civicrm_event.is_active = 1
           }
         }
         elseif ('date' == substr($name, -4)) {
-          $values[$index] = $params[$name];
+          $values[$index] = CRM_Utils_Date::customFormat(CRM_Utils_Date::processDate($params[$name]),
+            $config->dateformatFull);
         }
         elseif ('country' == substr($name, 0, 7)) {
           if ($params[$name]) {
@@ -1500,11 +1513,8 @@ WHERE  id = $cfID
               $dao = CRM_Core_DAO::executeQuery($query);
               $dao->fetch();
               $htmlType = $dao->html_type;
-              $dataType = $dao->data_type;
 
               if ($htmlType == 'File') {
-                //$fileURL = CRM_Core_BAO_CustomField::getFileURL( $contactID, $cfID );
-                //$params[$index] = $values[$index] = $fileURL['file_url'];
                 $values[$index] = $params[$index];
               }
               else {
@@ -1517,9 +1527,16 @@ WHERE  id = $cfID
                   $customVal = (float )($params[$name]);
                 }
                 elseif ($dao->data_type == 'Date') {
-                  $customVal = $displayValue = $params[$name];
+                  //@todo note the currently we are using default date time formatting. Since you can select/set
+                  // different date and time format specific to custom field we should consider fixing this
+                  // sometime in the future
+                  $customVal = $displayValue = CRM_Utils_Date::customFormat(
+                    CRM_Utils_Date::processDate($params[$name]), $config->dateformatFull);
+
                   if (!empty($params[$name . '_time'])) {
-                    $customVal = $displayValue = $params[$name] . ' ' . $params[$name . '_time'];
+                    $customVal = $displayValue = CRM_Utils_Date::customFormat(
+                      CRM_Utils_Date::processDate($params[$name], $params[$name . '_time']),
+                      $config->dateformatDatetime);
                   }
                   $skip = TRUE;
                 }

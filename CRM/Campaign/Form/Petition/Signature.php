@@ -283,6 +283,9 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
     }
 
     $this->setDefaults($this->_defaults);
+
+    // add in all state country selectors for enabled countries
+    CRM_Core_BAO_Address::fixAllStateSelects($this, $this->_defaults);
   }
 
   public function buildQuickForm() {
@@ -584,6 +587,9 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
    */
   function buildCustom($id, $name, $viewOnly = FALSE) {
 
+    // create state country map array to hold selectors
+    $stateCountryMap = array();
+
     if ($id) {
       $session = CRM_Core_Session::singleton();
       $this->assign("petition", $this->petition);
@@ -625,17 +631,27 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
             continue;
           }
 
+          // if state or country in the profile, create map
+          list($prefixName, $index) = CRM_Utils_System::explode('-', $key, 2);
+          if ($prefixName == 'state_province' || $prefixName == 'country' || $prefixName == 'county') {
+            if (!array_key_exists($index, $stateCountryMap)) {
+              $stateCountryMap[$index] = array();
+            }
+            $stateCountryMap[$index][$prefixName] = $key;
+          }
 
           CRM_Core_BAO_UFGroup::buildProfile($this, $field, CRM_Profile_Form::MODE_CREATE, $contactID, TRUE);
           $this->_fields[$key] = $field;
-          if ($field['add_captcha']) {
+          // CRM-11316 Is ReCAPTCHA enabled for this profile AND is this an anonymous visitor
+          if ($field['add_captcha'] && !$this->_contactId) {
             $addCaptcha = TRUE;
           }
         }
 
-        if ($addCaptcha &&
-          !$viewOnly
-        ) {
+        // initialize the state country map
+        CRM_Core_BAO_Address::addStateCountryMap($stateCountryMap);
+
+        if ($addCaptcha && !$viewOnly) {
           $captcha = CRM_Utils_ReCAPTCHA::singleton();
           $captcha->add($this);
           $this->assign("isCaptcha", TRUE);

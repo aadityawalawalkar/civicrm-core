@@ -46,6 +46,7 @@ class CRM_Admin_Form_Setting_Miscellaneous extends CRM_Admin_Form_Setting {
     'versionCheck' => CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
     'maxFileSize' => CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
     'doNotAttachPDFReceipt' => CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
+    'secondDegRelPermissions' => CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
   );
 
   /**
@@ -55,7 +56,7 @@ class CRM_Admin_Form_Setting_Miscellaneous extends CRM_Admin_Form_Setting {
    * @access public
    */
   public function buildQuickForm() {
-    CRM_Utils_System::setTitle(ts('Settings - Undelete, Logging and ReCAPTCHA'));
+    CRM_Utils_System::setTitle(ts('Misc (Undelete, PDFs, Limits, Logging, Captcha, etc.)'));
 
     // also check if we can enable triggers
     $validTriggerPermission = CRM_Core_DAO::checkTriggerViewPermission(FALSE);

@@ -330,7 +330,7 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
 
       // get price info
       // CRM-5095
-      CRM_Price_BAO_Set::initSet($this, $this->_id, 'civicrm_contribution_page');
+      CRM_Price_BAO_PriceSet::initSet($this, $this->_id, 'civicrm_contribution_page');
 
       // this avoids getting E_NOTICE errors in php
       $setNullFields = array(
@@ -537,12 +537,15 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
     }
 
     foreach ($vars as $v) {
-      if (CRM_Utils_Array::value($v, $this->_params)) {
+      if (isset($this->_params[$v])) {
         if ($v == 'frequency_unit' || $v == 'pledge_frequency_unit') {
           $frequencyUnits = CRM_Core_OptionGroup::values('recur_frequency_units');
           if (array_key_exists($this->_params[$v], $frequencyUnits)) {
             $this->_params[$v] = $frequencyUnits[$this->_params[$v]];
           }
+        }
+        if ($v == "amount") {
+          $this->_params[$v] = CRM_Utils_Money::format($this->_params[$v], ' ');
         }
         $this->assign($v, $this->_params[$v]);
       }
@@ -713,7 +716,8 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
             );
             $this->_fields[$key] = $field;
           }
-          if ($field['add_captcha']) {
+          // CRM-11316 Is ReCAPTCHA enabled for this profile AND is this an anonymous visitor
+          if ($field['add_captcha'] && !$this->_userID) {
             $addCaptcha = TRUE;
           }
         }

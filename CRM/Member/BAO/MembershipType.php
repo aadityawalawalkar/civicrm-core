@@ -163,22 +163,11 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
 
       if (in_array('MembershipBlock', $status)) {
         $deleteURL = CRM_Utils_System::url('civicrm/admin/contribute', 'reset=1');
-        $message .= '<br/>' . ts('%2. This Membership Type is used in an <a href=\'%1\'>Online Contribution page</a>. Uncheck this membership type in the Memberships tab.', array(1 => $deleteURL, 2 => $cnt));
-      }
-      if (!$skipRedirect) {
-        $session = CRM_Core_Session::singleton();
-        CRM_Core_Session::setStatus($message, ts('Membership Not Deleted'), 'error');
-        return CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/admin/member/membershipType', 'reset=1&action=browse'));
-      }
-      else {
-        $error = array();
-        $error['is_error'] = 1;
-        //don't translate as api error message are not translated
-        $error['error_message'] = $message;
-        return $error;
+        $message .= ts('%2. This Membership Type is used in an <a href=\'%1\'>Online Contribution page</a>. Uncheck this membership type in the Memberships tab.', array(1 => $deleteURL, 2 => $cnt));
+        throw new CRM_Core_Exception($message);
       }
     }
-
+    CRM_Utils_Weight::delWeight('CRM_Member_DAO_MembershipType', $membershipTypeId);
     //delete from membership Type table
     $membershipType = new CRM_Member_DAO_MembershipType();
     $membershipType->id = $membershipTypeId;
@@ -659,7 +648,7 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
 
   public static function createMembershipPriceField($params, $ids, $previousID, $membershipTypeId) {
 
-    $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_Set', 'default_membership_type_amount', 'id', 'name');
+    $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', 'default_membership_type_amount', 'id', 'name');
 
     if (CRM_Utils_Array::value('member_of_contact_id', $params)) {
       $fieldName = $params['member_of_contact_id'];
@@ -674,7 +663,7 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
       'name' => $fieldName,
     );
     $results = array();
-    CRM_Price_BAO_Field::retrieve($fieldParams, $results);
+    CRM_Price_BAO_PriceField::retrieve($fieldParams, $results);
     if (empty($results)) {
       $fieldParams = array();
       $fieldParams['label'] = $fieldLabel;
@@ -694,7 +683,7 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
         CRM_Member_Form_MembershipType::checkPreviousPriceField($previousID, $priceSetId, $membershipTypeId, $optionsIds);
         $fieldParams['option_id'] = CRM_Utils_Array::value('option_id', $optionsIds);
       }
-      $priceField = CRM_Price_BAO_Field::create($fieldParams);
+      $priceField = CRM_Price_BAO_PriceField::create($fieldParams);
     }
     else {
       $fieldID = $results['id'];
@@ -703,7 +692,7 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
         'membership_type_id' => $membershipTypeId,
       );
       $results = array();
-      CRM_Price_BAO_FieldValue::retrieve($fieldValueParams, $results);
+      CRM_Price_BAO_PriceFieldValue::retrieve($fieldValueParams, $results);
       if (!empty($results)) {
         $results['label']  = $results['name'] = $params['name'];
         $results['amount'] = empty($params['minimum_fee']) ? 0 : $params['minimum_fee'];
@@ -728,7 +717,7 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
       }
       $results['financial_type_id'] = CRM_Utils_Array::value('financial_type_id', $params);
       $results['description'] = CRM_Utils_Array::value('description', $params);
-      CRM_Price_BAO_FieldValue::add($results, $optionsIds);
+      CRM_Price_BAO_PriceFieldValue::add($results, $optionsIds);
     }
   }
 

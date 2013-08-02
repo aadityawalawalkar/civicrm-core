@@ -649,6 +649,33 @@ AND    u.status = 1
   }
 
   /**
+   * Perform any post login activities required by the UF -
+   * e.g. for drupal: records a watchdog message about the new session, saves the login timestamp,
+   * calls hook_user op 'login' and generates a new session.
+   *
+   * @param array params
+   *
+   * FIXME: Document values accepted/required by $params
+   */
+  function userLoginFinalize($params = array()){
+    user_login_finalize($params);
+  }
+
+  /**
+   * Determine the native ID of the CMS user
+   *
+   * @param $username
+   * @return int|NULL
+   */
+  function getUfId($username) {
+    $user = user_load_by_name($username);
+    if (empty($user->uid)) {
+      return NULL;
+    }
+    return $user->uid;
+  }
+
+  /**
    * Set a message in the UF to display to a user
    *
    * @param string $message the message to set

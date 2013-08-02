@@ -179,10 +179,9 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
       $this->_defaults["billing_country_id-{$this->_bltID}"] = $config->defaultContactCountry;
     }
 
-    // now fix all state country selectors
-    CRM_Core_BAO_Address::fixAllStateSelects($this, $this->_defaults);
-
     if ($this->_snippet) {
+      // now fix all state country selectors
+      CRM_Core_BAO_Address::fixAllStateSelects($this, $this->_defaults);
       return $this->_defaults;
     }
 
@@ -213,6 +212,9 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
     if (!empty($fields)) {
       CRM_Core_BAO_UFGroup::setProfileDefaults($contactID, $fields, $this->_defaults);
     }
+
+    // now fix all state country selectors
+    CRM_Core_BAO_Address::fixAllStateSelects($this, $this->_defaults);
 
     // Set default payment processor as default payment_processor radio button value
     if (!empty($this->_paymentProcessors)) {
@@ -359,7 +361,6 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
     $this->assign('contact_id', $contactID);
     $this->assign('display_name', CRM_Contact_BAO_Contact::displayName($contactID));
 
-    $config = CRM_Core_Config::singleton();
     $this->add('hidden', 'scriptFee', NULL);
     $this->add('hidden', 'scriptArray', NULL);
 
@@ -627,7 +628,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
           }
 
           //build the element.
-          CRM_Price_BAO_Field::addQuickFormElement($form,
+          CRM_Price_BAO_PriceField::addQuickFormElement($form,
             $elementName,
             $fieldId,
             FALSE,
@@ -843,7 +844,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
       }
 
       $lineItem = array();
-      CRM_Price_BAO_Set::processAmount($self->_values['fee'], $fields, $lineItem);
+      CRM_Price_BAO_PriceSet::processAmount($self->_values['fee'], $fields, $lineItem);
       if ($fields['amount'] < 0) {
         $errors['_qf_default'] = ts('Event Fee(s) can not be less than zero. Please select the options accordingly');
       }
@@ -858,7 +859,6 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
         }
       }
       // return if this is express mode
-      $config = CRM_Core_Config::singleton();
       if ($self->_paymentProcessor &&
         $self->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_BUTTON
       ) {
@@ -1051,7 +1051,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
       }
       else {
         $lineItem = array();
-        CRM_Price_BAO_Set::processAmount($this->_values['fee'], $params, $lineItem);
+        CRM_Price_BAO_PriceSet::processAmount($this->_values['fee'], $params, $lineItem);
         $this->set('lineItem', array($lineItem));
         $this->set('lineItemParticipantsCount', array($primaryParticipantCount));
       }

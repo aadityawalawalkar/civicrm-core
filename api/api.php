@@ -19,7 +19,10 @@
  *   array to be passed to function
  */
 function civicrm_api($entity, $action, $params, $extra = NULL) {
-  $apiWrappers = array(CRM_Core_HTMLInputCoder::singleton());
+  $apiWrappers = array(
+    CRM_Utils_API_HTMLInputCoder::singleton(),
+    CRM_Utils_API_NullOutputCoder::singleton()
+  );
   try {
     require_once ('api/v3/utils.php');
     require_once 'api/Exception.php';
@@ -58,6 +61,7 @@ function civicrm_api($entity, $action, $params, $extra = NULL) {
       civicrm_api3_verify_mandatory($apiRequest['params'], NULL, _civicrm_api3_getrequired($apiRequest));
     }
 
+    // For input filtering, process $apiWrappers in forward order
     foreach ($apiWrappers as $apiWrapper) {
       $apiRequest = $apiWrapper->fromApiInput($apiRequest);
     }
@@ -78,7 +82,8 @@ function civicrm_api($entity, $action, $params, $extra = NULL) {
       return civicrm_api3_create_error("API (" . $apiRequest['entity'] . "," . $apiRequest['action'] . ") does not exist (join the API team and implement it!)");
     }
 
-    foreach ($apiWrappers as $apiWrapper) {
+    // For output filtering, process $apiWrappers in reverse order
+    foreach (array_reverse($apiWrappers) as $apiWrapper) {
       $result = $apiWrapper->toApiOutput($apiRequest, $result);
     }
 
@@ -235,6 +240,23 @@ function _civicrm_api_resolve($apiRequest) {
 
   $cache[$cachekey] = array('function' => FALSE, 'is_generic' => FALSE);
   return $cache[$cachekey];
+}
+/**
+ * Version 3 wrapper for civicrm_api. Throws exception
+ * @param string $entity type of entities to deal with
+ * @param string $action create, get, delete or some special action name.
+ * @param array $params array to be passed to function
+ *
+ * @return array
+ *
+ */
+function civicrm_api3($entity, $action, $params) {
+  $params['version'] = 3;
+  $result = civicrm_api($entity, $action, $params);
+  if($result['is_error']){
+    throw new CiviCRM_API3_Exception($result['error_message'], CRM_Utils_Array::value('error_code', $result, 'undefined'), $result);
+  }
+  return $result;
 }
 
 /**

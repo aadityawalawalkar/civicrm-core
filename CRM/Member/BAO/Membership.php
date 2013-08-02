@@ -246,18 +246,9 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
     if (!CRM_Utils_Array::value('is_override', $params) &&
       !CRM_Utils_Array::value('skipStatusCal', $params)
     ) {
-      $startDate = $endDate = $joinDate = NULL;
-      if (isset($params['start_date'])) {
-        $startDate = $params['start_date'];
-      }
-
-      if (array_key_exists('end_date', $params)) {
-        $endDate = $params['end_date'];
-        $params['end_date'] = CRM_Utils_Date::processDate($endDate, NULL, TRUE, 'Ymd');
-      }
-
-      if (isset($params['join_date'])) {
-        $joinDate = $params['join_date'];
+      $dates = array('start_date', 'end_date', 'join_date');
+      foreach ($dates as $date) {
+        $$date = CRM_Utils_Date::processDate(CRM_Utils_Array::value($date, $params), NULL, TRUE, 'Ymd');
       }
 
       //fix for CRM-3570, during import exclude the statuses those having is_admin = 1
@@ -270,24 +261,21 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
         $excludeIsAdmin = TRUE;
       }
 
-      $calcStatus = CRM_Member_BAO_MembershipStatus::getMembershipStatusByDate($startDate, $endDate, $joinDate,
+      $calcStatus = CRM_Member_BAO_MembershipStatus::getMembershipStatusByDate($start_date, $end_date, $join_date,
         'today', $excludeIsAdmin
       );
       if (empty($calcStatus)) {
-        if (!$skipRedirect) {
-          // Redirect the form in case of error
-          CRM_Core_Session::setStatus(ts('The membership cannot be saved.') .
-            '<br/>' .
-            ts('No valid membership status for given dates.'),
-          ts('Save Error'), 'error');
-          return CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view',
-              "reset=1&force=1&cid={$params['contact_id']}&selectedChild=member"
-            ));
-        }
-        // Return the error message to the api
-        $error = array();
-        $error['is_error'] = ts('The membership cannot be saved. No valid membership status for given dates. Please provide at least start_date. Optionally end_date and join_date.');
-        return $error;
+        // Redirect the form in case of error
+        // @todo this redirect in the BAO layer is really bad & should be moved to the form layer
+        // however since we have no idea how (if) this is triggered we can't safely move / remove it
+        // NB I tried really hard to trigger this error from backoffice membership form in order to test it
+        // and am convinced form validation is complete on that form WRT this error.
+        $errorParams = array(
+          'message_title' => ts('No valid membership status for given dates.'),
+          'legacy_redirect_path' => 'civicrm/contact/view',
+          'legacy_redirect_query' => "reset=1&force=1&cid={$params['contact_id']}&selectedChild=member",
+        );
+        throw new CRM_Core_Exception(ts('The membership cannot be saved.'), 0, $errorParams);
       }
       $params['status_id'] = $calcStatus['id'];
     }
@@ -579,6 +567,23 @@ INNER JOIN  civicrm_membership_type type ON ( type.id = membership.membership_ty
 
   /**
    * Function to delete membership.
+   * Wrapper for most delete calls. Use this unless you JUST want to delete related memberships w/o deleting the parent.
+   *
+   * @param int $membershipId membership id that needs to be deleted
+   *
+   * @static
+   *
+   * @return $results   no of deleted Membership on success, false otherwise
+   * @access public
+   */
+  static function del($membershipId) {
+    //delete related first and then delete parent.
+    self::deleteRelatedMemberships($membershipId);
+    return self::deleteMembership($membershipId);    
+  }
+  
+  /**
+   * Function to delete membership.
    *
    * @param int $membershipId membership id that needs to be deleted
    *
@@ -592,6 +597,7 @@ INNER JOIN  civicrm_membership_type type ON ( type.id = membership.membership_ty
     $params = array('id' => $membershipId);
     $memValues = array();
     $memberships = self::getValues($params, $memValues);
+
     $membership = $memberships[$membershipId];
 
     CRM_Utils_Hook::pre('delete', 'Membership', $membershipId, $memValues);
@@ -637,6 +643,36 @@ INNER JOIN  civicrm_membership_type type ON ( type.id = membership.membership_ty
     CRM_Utils_Recent::del($membershipRecent);
 
     return $results;
+  }
+
+  /**
+   * Function to delete related memberships
+   *
+   * @param int $ownerMembershipId
+   * @param int $contactId
+   *
+   * @return null
+   * @static
+   */
+  static function deleteRelatedMemberships($ownerMembershipId, $contactId = NULL) {
+    if (!$ownerMembershipId && !$contactId) {
+      return;
+    }
+
+    $membership = new CRM_Member_DAO_Membership();
+    $membership->owner_membership_id = $ownerMembershipId;
+
+    if ($contactId) {
+      $membership->contact_id = $contactId;
+    }
+
+    $membership->find();
+    while ($membership->fetch()) {
+      //delete related first and then delete parent.
+      self::deleteRelatedMemberships($membership->id);
+      self::deleteMembership($membership->id);
+    }
+    $membership->free();
   }
 
   /**
@@ -851,7 +887,7 @@ INNER JOIN  civicrm_membership_type type ON ( type.id = membership.membership_ty
           $form->addRule('selectMembership', ts('Please select one of the memberships.'), 'required');
         }
         else {
-          $autoRenewOption = CRM_Price_BAO_Set::checkAutoRenewForPriceSet($form->_priceSetId);
+          $autoRenewOption = CRM_Price_BAO_PriceSet::checkAutoRenewForPriceSet($form->_priceSetId);
           $form->assign('autoRenewOption', $autoRenewOption);
         }
 
@@ -1192,13 +1228,7 @@ AND civicrm_membership.is_test = %2";
   static function statusAvailabilty($contactId) {
     $membership = new CRM_Member_DAO_MembershipStatus();
     $membership->whereAdd('is_active=1');
-    $count = $membership->count();
-
-    if (!$count) {
-      $session = CRM_Core_Session::singleton();
-      CRM_Core_Session::setStatus(ts('There are no status present, You cannot add membership.'), ts('Deleted'), 'error');
-      return CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contact/view', "reset=1&force=1&cid={$contactId}&selectedChild=member"));
-    }
+    return $membership->count();
   }
 
   /**
@@ -1426,11 +1456,14 @@ AND civicrm_membership.is_test = %2";
         }
       }
       $message = ts('Payment Processor Error message') . ': ' . implode('<br/>', $message);
-      $session = CRM_Core_Session::singleton();
-      $session->setStatus($message);
-      CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/contribute/transact',
-          "_qf_Main_display=true&qfKey={$form->_params['qfKey']}"
-        ));
+      // Redirect the form in case of error
+      // @todo this redirect in the BAO layer is really bad & should be moved to the form layer
+      // however since we have no idea how (if) this is triggered we can't safely move / remove it
+      $errorParams = array(
+        'legacy_redirect_path' => 'civicrm/contribute/transact',
+        'legacy_redirect_query' => "_qf_Main_display=true&qfKey={$form->_params['qfKey']}",
+      );
+      throw new CiviCRM_Exception($message, 0, $errorParams);
     }
 
     // CRM-7851
@@ -1895,36 +1928,6 @@ SELECT c.contribution_page_id as pageID
   }
 
   /**
-   * Function to delete related memberships
-   *
-   * @param int $ownerMembershipId
-   * @param int $contactId
-   *
-   * @return null
-   * @static
-   */
-  static function deleteRelatedMemberships($ownerMembershipId, $contactId = NULL) {
-    if (!$ownerMembershipId && !$contactId) {
-      return;
-    }
-
-    $membership = new CRM_Member_DAO_Membership();
-    $membership->owner_membership_id = $ownerMembershipId;
-
-    if ($contactId) {
-      $membership->contact_id = $contactId;
-    }
-
-    $membership->find();
-    while ($membership->fetch()) {
-      //delete related first and then delete parent.
-      self::deleteRelatedMemberships($membership->id);
-      self::deleteMembership($membership->id);
-    }
-    $membership->free();
-  }
-
-  /**
    * Function to updated related memberships
    *
    * @param int   $ownerMembershipId owner Membership Id
@@ -2076,7 +2079,7 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
 
     //lets cleanup related membership if any.
     if (empty($relatedContacts)) {
-      CRM_Member_BAO_Membership::deleteRelatedMemberships($membership->id);
+      self::deleteRelatedMemberships($membership->id);
     }
     else {
       // Edit the params array
@@ -2147,7 +2150,7 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
         CRM_Member_BAO_Membership::create($params, $relMemIds);
               $available --;
             } else { // we have run out of inherited memberships, so delete extras
-              CRM_Member_BAO_Membership::deleteMembership($params['id']);
+              self::deleteMembership($params['id']);
             }
           // we need to first check if there will remain inherited memberships, so queue it up
           } else {
@@ -2749,16 +2752,16 @@ WHERE      civicrm_membership.is_test = 0";
    * @static
    */
   static function createLineItems(&$qf, $membershipType, &$priceSetId) {
-    $qf->_priceSetId = $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_Set', 'default_membership_type_amount', 'id', 'name');
+    $qf->_priceSetId = $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', 'default_membership_type_amount', 'id', 'name');
     if ($priceSetId) {
-      $qf->_priceSet = $priceSets = current(CRM_Price_BAO_Set::getSetDetail($priceSetId));
+      $qf->_priceSet = $priceSets = current(CRM_Price_BAO_PriceSet::getSetDetail($priceSetId));
     }
     $editedFieldParams = array(
       'price_set_id' => $priceSetId,
       'name' => $membershipType[0],
     );
     $editedResults = array();
-    CRM_Price_BAO_Field::retrieve($editedFieldParams, $editedResults);
+    CRM_Price_BAO_PriceField::retrieve($editedFieldParams, $editedResults);
 
     if (!empty($editedResults)) {
       unset($qf->_priceSet['fields']);
@@ -2770,7 +2773,7 @@ WHERE      civicrm_membership.is_test = 0";
         'membership_type_id' => $membershipType[1],
       );
       $editedResults = array();
-      CRM_Price_BAO_FieldValue::retrieve($editedFieldParams, $editedResults);
+      CRM_Price_BAO_PriceFieldValue::retrieve($editedFieldParams, $editedResults);
       $qf->_priceSet['fields'][$fid]['options'][$editedResults['id']] = $priceSets['fields'][$fid]['options'][$editedResults['id']];
       if (CRM_Utils_Array::value('total_amount', $qf->_params)) {
         $qf->_priceSet['fields'][$fid]['options'][$editedResults['id']]['amount'] = $qf->_params['total_amount'];

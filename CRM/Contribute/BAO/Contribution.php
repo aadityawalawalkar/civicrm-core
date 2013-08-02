@@ -133,7 +133,8 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     }
 
     // contribution status is missing, choose Completed as default status
-    if (!CRM_Utils_Array::value('contribution_status_id', $params)) {
+    // do this for create mode only
+    if (!CRM_Utils_Array::value('contribution', $ids) && !CRM_Utils_Array::value('contribution_status_id', $params)) {
       $params['contribution_status_id'] = CRM_Core_OptionGroup::getValue('contribution_status', 'Completed', 'name');
     }
 
@@ -671,8 +672,8 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = civicrm_contribution.conta
     CRM_Pledge_BAO_PledgePayment::resetPledgePayment($id);
 
     // remove entry from civicrm_price_set_entity, CRM-5095
-    if (CRM_Price_BAO_Set::getFor('civicrm_contribution', $id)) {
-      CRM_Price_BAO_Set::removeFrom('civicrm_contribution', $id);
+    if (CRM_Price_BAO_PriceSet::getFor('civicrm_contribution', $id)) {
+      CRM_Price_BAO_PriceSet::removeFrom('civicrm_contribution', $id);
     }
     // cleanup line items.
     $participantId = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_ParticipantPayment', $id, 'participant_id', 'contribution_id');
@@ -1181,10 +1182,14 @@ LEFT JOIN civicrm_option_value contribution_status ON (civicrm_contribution.cont
     $addressParams = array();
     $addressParams['location_type_id'] = $billingLocationTypeID;
     $addressParams['is_billing'] = 1;
-    $addressParams['address_name'] = "{$params['billing_first_name']}" . CRM_Core_DAO::VALUE_SEPARATOR . "{$params['billing_middle_name']}" . CRM_Core_DAO::VALUE_SEPARATOR . "{$params['billing_last_name']}";
+
+    $billingFirstName = CRM_Utils_Array::value('billing_first_name', $params);
+    $billingMiddleName = CRM_Utils_Array::value('billing_middle_name', $params);
+    $billingLastName = CRM_Utils_Array::value('billing_last_name', $params);
+    $addressParams['address_name'] = "{$billingFirstName}" . CRM_Core_DAO::VALUE_SEPARATOR . "{$billingMiddleName}" . CRM_Core_DAO::VALUE_SEPARATOR . "{$billingLastName}";
 
     foreach ($billingFields as $value) {
-      $addressParams[$value] = $params["billing_{$value}-{$billingLocationTypeID}"];
+      $addressParams[$value] = CRM_Utils_Array::value("billing_{$value}-{$billingLocationTypeID}", $params);
     }
 
     $address = CRM_Core_BAO_Address::add($addressParams, FALSE);
@@ -2172,7 +2177,7 @@ WHERE  contribution_id = %1 ";
             }
           }
           $values['lineItem'][0] = $lineItem;
-          $values['priceSetID']  = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_Field', $lineItem[$itemId]['price_field_id'], 'price_set_id');
+          $values['priceSetID']  = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceField', $lineItem[$itemId]['price_field_id'], 'price_set_id');
       }
       }
 
@@ -2486,16 +2491,19 @@ WHERE  contribution_id = %1 ";
       $entityId = $params['contribution']->id;
       $entityTable = 'civicrm_contribution';
     }
+
     $entityID[] = $entityId;
     if (!empty($additionalParticipantId)) {
       $entityID += $additionalParticipantId;
     }
+    // prevContribution appears to mean - original contribution object- ie copy of contribution from before the update started that is being updated
     if (!CRM_Utils_Array::value('prevContribution', $params)) {
       $entityID = NULL;
     }
     else {
       $update = TRUE;
     }
+
     // build line item array if its not set in $params
     if (!CRM_Utils_Array::value('line_item', $params) || $additionalParticipantId) {
       CRM_Price_BAO_LineItem::getLineItemArray($params, $entityID, str_replace('civicrm_', '', $entityTable));
@@ -2683,7 +2691,8 @@ WHERE  contribution_id = %1 ";
 
         $params['trxnParams']['total_amount'] = - $params['total_amount'];
       }
-      elseif ($params['prevContribution']->contribution_status_id == array_search('Pending', $contributionStatus)) {
+      elseif ($params['prevContribution']->contribution_status_id == array_search('Pending', $contributionStatus) 
+        && $params['prevContribution']->is_pay_later) {
         $financialTypeID = CRM_Utils_Array::value('financial_type_id', $params) ? $params['financial_type_id'] : $params['prevContribution']->financial_type_id;
         if ($params['contribution']->contribution_status_id == array_search('Cancelled', $contributionStatus)) {
           $params['trxnParams']['to_financial_account_id'] = NULL;

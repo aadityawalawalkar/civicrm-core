@@ -1,12 +1,11 @@
 <?php
-
-/*
- Function demonstrates getting asignee_contact_id & using it to get the contact
+/**
+ * Test Generated example of using activity get API
+ * Function demonstrates getting asignee_contact_id & using it to get the contact *
  */
 function activity_get_example(){
 $params = array(
   'activity_id' => 1,
-  'version' => 3,
   'sequential' => 1,
   'return.assignee_contact_id' => 1,
   'api.contact.get' => array(
@@ -14,12 +13,21 @@ $params = array(
     ),
 );
 
-  $result = civicrm_api( 'activity','get',$params );
-
-  return $result;
+try{
+  $result = civicrm_api3('activity', 'get', $params);
+}
+catch (CiviCRM_API3_Exception $e) {
+  // handle error here
+  $errorMessage = $e->getMessage();
+  $errorCode = $e->getErrorCode();
+  $errorData = $e->getExtraParams();
+  return array('error' => $errorMessage, 'error_code' => $errorCode, 'error_data' => $errorData);
 }
 
-/*
+return $result;
+}
+
+/**
  * Function returns array of result expected from previous function
  */
 function activity_get_expectedresult(){
@@ -32,7 +40,7 @@ function activity_get_expectedresult(){
   'values' => array(
       '0' => array(
           'id' => '1',
-          'activity_type_id' => '44',
+          'activity_type_id' => '46',
           'subject' => 'test activity type id',
           'activity_date_time' => '2011-06-02 14:36:13',
           'duration' => '120',
@@ -50,9 +58,6 @@ function activity_get_expectedresult(){
           'source_contact_id' => '17',
           'api.contact.get' => array(
               'is_error' => 0,
-              'undefined_fields' => array(
-                  '0' => 'api.has_parent',
-                ),
               'version' => 3,
               'count' => 1,
               'id' => 17,
@@ -120,7 +125,7 @@ function activity_get_expectedresult(){
     ),
 );
 
-  return $expectedResult  ;
+  return $expectedResult;
 }
 
 
