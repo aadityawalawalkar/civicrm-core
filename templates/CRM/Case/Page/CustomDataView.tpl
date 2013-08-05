@@ -25,7 +25,7 @@
 *}
 {* include wysiwyg related files*}
 {if !$includeWysiwygEditor}
-    {include file="CRM/common/wysiwyg.tpl" includeWysiwygEditor=true}
+  {include file="CRM/common/wysiwyg.tpl" includeWysiwygEditor=true}
 {/if}
 {* Custom Data view mode*}
 {foreach from=$viewCustomData item=customValues key=customGroupId}
