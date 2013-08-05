@@ -53,8 +53,6 @@ class CRM_Case_Form_CaseView extends CRM_Core_Form {
   public function preProcess() {
     // js for changing activity status
     CRM_Core_Resources::singleton()->addScriptFile('civicrm', 'templates/CRM/Case/Form/ActivityChangeStatus.js');
-    // js for showing rich text editor
-    CRM_Core_Resources::singleton()->addScriptFile('civicrm', 'packages/ckeditor/ckeditor.js');
 
     $this->_showRelatedCases = CRM_Utils_Array::value('relatedCases', $_GET);
 
