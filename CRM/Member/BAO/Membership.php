@@ -66,9 +66,6 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
    */
   static function &add(&$params, &$ids) {
 
-    // get activity types for use in activity record creation
-    $activityTypes = CRM_Core_PseudoConstant::activityType(TRUE, FALSE, FALSE, 'name');
-
     if (CRM_Utils_Array::value('membership', $ids)) {
       CRM_Utils_Hook::pre('edit', 'Membership', $ids['membership'], $params);
       $oldStatus         = NULL;
@@ -96,7 +93,6 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
     $membership->save();
     $membership->free();
 
-    $session = CRM_Core_Session::singleton();
     if (empty($membership->contact_id) || empty($membership->status_id)) {
       // this means we are in renewal mode and are just updating the membership
       // record or this is an API update call and all fields are not present in the update record
@@ -142,40 +138,32 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
 
     if (CRM_Utils_Array::value('membership', $ids)) {
       if ($membership->status_id != $oldStatus) {
-        $allStatus     = CRM_Member_PseudoConstant::membershipStatus();
+        $allStatus = CRM_Member_BAO_Membership::buildOptions('status_id', 'get');
         $activityParam = array(
           'subject' => "Status changed from {$allStatus[$oldStatus]} to {$allStatus[$membership->status_id]}",
           'source_contact_id' => $membershipLog['modified_id'],
           'target_contact_id' => $membership->contact_id,
           'source_record_id' => $membership->id,
-          'activity_type_id' => array_search('Change Membership Status', $activityTypes),
+          'activity_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', 'Change Membership Status'),
           'status_id' => 2,
-          'version' => 3,
           'priority_id' => 2,
           'activity_date_time' => date('Y-m-d H:i:s'),
-          'is_auto' => 0,
-          'is_current_revision' => 1,
-          'is_deleted' => 0,
         );
-        $activityResult = civicrm_api('activity', 'create', $activityParam);
+        civicrm_api3('activity', 'create', $activityParam);
       }
       if (isset($membership->membership_type_id) && $membership->membership_type_id != $oldType) {
-        $membershipTypes = CRM_Member_PseudoConstant::membershipType();
+        $membershipTypes = CRM_Member_BAO_Membership::buildOptions('membership_type_id', 'get');
         $activityParam = array(
           'subject' => "Type changed from {$membershipTypes[$oldType]} to {$membershipTypes[$membership->membership_type_id]}",
           'source_contact_id' => $membershipLog['modified_id'],
           'target_contact_id' => $membership->contact_id,
           'source_record_id' => $membership->id,
-          'activity_type_id' => array_search('Change Membership Type', $activityTypes),
+          'activity_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', 'Change Membership Status'),
           'status_id' => 2,
-          'version' => 3,
           'priority_id' => 2,
           'activity_date_time' => date('Y-m-d H:i:s'),
-          'is_auto' => 0,
-          'is_current_revision' => 1,
-          'is_deleted' => 0,
         );
-        $activityResult = civicrm_api('activity', 'create', $activityParam);
+        civicrm_api3('activity', 'create', $activityParam);
       }
       CRM_Utils_Hook::post('edit', 'Membership', $membership->id, $membership);
     }
@@ -261,7 +249,7 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
         $excludeIsAdmin = TRUE;
       }
 
-      $calcStatus = CRM_Member_BAO_MembershipStatus::getMembershipStatusByDate($start_date, $end_date, $join_date,
+      $calcStatus = $calcStatus = CRM_Member_BAO_MembershipStatus::getMembershipStatusByDate($start_date, $end_date, $join_date,
         'today', $excludeIsAdmin
       );
       if (empty($calcStatus)) {
@@ -275,7 +263,7 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
           'legacy_redirect_path' => 'civicrm/contact/view',
           'legacy_redirect_query' => "reset=1&force=1&cid={$params['contact_id']}&selectedChild=member",
         );
-        throw new CRM_Core_Exception(ts('The membership cannot be saved.'), 0, $errorParams);
+        throw new CRM_Core_Exception(ts('The membership cannot be saved because the status cannot be calculated.'), 0, $errorParams);
       }
       $params['status_id'] = $calcStatus['id'];
     }
@@ -322,7 +310,7 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
 
     //record contribution for this membership
     if (CRM_Utils_Array::value('contribution_status_id', $params) && !CRM_Utils_Array::value('relate_contribution_id', $params)) {
-      $params['contribution'] = self::recordMembershipContribution( $params, $ids, $membership->id );
+      $params['contribution'] = self::recordMembershipContribution( array_merge($params, array('membership_id' => $membership->id)), $ids);
     }
 
     //insert payment record for this membership
@@ -579,9 +567,9 @@ INNER JOIN  civicrm_membership_type type ON ( type.id = membership.membership_ty
   static function del($membershipId) {
     //delete related first and then delete parent.
     self::deleteRelatedMemberships($membershipId);
-    return self::deleteMembership($membershipId);    
+    return self::deleteMembership($membershipId);
   }
-  
+
   /**
    * Function to delete membership.
    *
@@ -2676,13 +2664,13 @@ WHERE      civicrm_membership.is_test = 0";
    * Function to record contribution record associated with membership
    *
    * @param array  $params array of submitted params
-   * @param array  $ids    array of ids
-   * @param object $membershipId  membership id
+   * @param array  $ids (param in process of being removed - try to use params)   array of ids
    *
    * @return void
    * @static
    */
-  static function recordMembershipContribution( &$params, &$ids, $membershipId ) {
+  static function recordMembershipContribution( &$params, $ids = array()) {
+    $membershipId = $params['membership_id'];
     $contributionParams = array();
     $config = CRM_Core_Config::singleton();
     $contributionParams['currency'] = $config->defaultCurrency;

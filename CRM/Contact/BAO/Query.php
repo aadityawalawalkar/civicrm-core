@@ -387,8 +387,14 @@ class CRM_Contact_BAO_Query {
    */
   protected $_relationshipValuesAdded = FALSE;
 
-  public $_pseudoConstantsSelect = array();
+  /**
+   * Set to the name of the temp table if one has been created
+   * @var String
+   */
+  static $_relationshipTempTable = NULL;
 
+  public $_pseudoConstantsSelect = array();
+  
   /**
    * class constructor which also does all the work
    *
@@ -1663,15 +1669,12 @@ class CRM_Contact_BAO_Query {
       case 'relation_start_date_low':
       case 'relation_end_date_high':
       case 'relation_end_date_low':
-        $this->relationship($values);
-        $this->_relationshipValuesAdded = TRUE;
-        return;
-
       case 'relation_target_name':
       case 'relation_status':
       case 'relation_date_low':
       case 'relation_date_high':
-        // since this case is handled with the above
+        $this->relationship($values);
+        $this->_relationshipValuesAdded = TRUE;
         return;
 
       case 'task_status_id':
@@ -1715,7 +1718,6 @@ class CRM_Contact_BAO_Query {
 
     $this->includeContactIds();
     if (!empty($this->_params)) {
-
       foreach (array_keys($this->_params) as $id) {
         if (!CRM_Utils_Array::value(0, $this->_params[$id])) {
           continue;
@@ -2402,8 +2404,15 @@ class CRM_Contact_BAO_Query {
 
         case 'civicrm_relationship':
           if (self::$_relType == 'reciprocal') {
-            $from .= " $side JOIN civicrm_relationship ON (civicrm_relationship.contact_id_b = contact_a.id OR civicrm_relationship.contact_id_a = contact_a.id)";
-            $from .= " $side JOIN civicrm_contact contact_b ON (civicrm_relationship.contact_id_a = contact_b.id OR civicrm_relationship.contact_id_b = contact_b.id)";
+            if(self::$_relationshipTempTable) {
+              // we have a temptable to join on
+              $tbl = self::$_relationshipTempTable;
+              $from .= " INNER JOIN {$tbl} civicrm_relationship ON civicrm_relationship.contact_id = contact_a.id";
+            }
+            else {
+              $from .= " $side JOIN civicrm_relationship ON (civicrm_relationship.contact_id_b = contact_a.id OR civicrm_relationship.contact_id_a = contact_a.id)";
+              $from .= " $side JOIN civicrm_contact contact_b ON (civicrm_relationship.contact_id_a = contact_b.id OR civicrm_relationship.contact_id_b = contact_b.id)";
+            }
           }
           elseif (self::$_relType == 'b') {
             $from .= " $side JOIN civicrm_relationship ON (civicrm_relationship.contact_id_b = contact_a.id )";
@@ -3787,12 +3796,25 @@ WHERE  id IN ( $groupIDs )
     $rTypeValues = array();
     $rType = CRM_Contact_BAO_RelationshipType::retrieve($params, $rTypeValues);
     if ($rTypeValues['name_a_b'] == $rTypeValues['name_b_a']) {
+      // if we don't know which end of the relationship we are dealing with we'll create a temp table
+      //@todo unless we are dealing with a target group
       self::$_relType = 'reciprocal';
     }
-
-    if ($nameClause) {
-      $this->_where[$grouping][] = "( contact_b.sort_name $nameClause AND contact_b.id != contact_a.id )";
+    // if we are creating a temp table we build our own where for the relationship table
+    if(self::$_relType == 'reciprocal' && empty($targetGroup)) {
+      $where = array();
+      self::$_relationshipTempTable = $relationshipTempTable = 'civicrm_temp_rel' . rand(0,99999);
+      if($nameClause) {
+        $where[$grouping][] = " sort_name $nameClause ";
+      }
     }
+    else {
+      $where = &$this->_where;
+      if ($nameClause) {
+        $where[$grouping][] = "( contact_b.sort_name $nameClause AND contact_b.id != contact_a.id )";
+      }
+    }
+
 
     $relTypeInd = CRM_Contact_BAO_Relationship::getContactRelationshipType(NULL, 'null', NULL, 'Individual');
     $relTypeOrg = CRM_Contact_BAO_Relationship::getContactRelationshipType(NULL, 'null', NULL, 'Organization');
@@ -3838,7 +3860,7 @@ WHERE  id IN ( $groupIDs )
     $today = date('Ymd');
     //check for active, inactive and all relation status
     if ($relStatus[2] == 0) {
-      $this->_where[$grouping][] = "(
+      $where[$grouping][] = "(
 civicrm_relationship.is_active = 1 AND
 ( civicrm_relationship.end_date IS NULL OR civicrm_relationship.end_date >= {$today} ) AND
 ( civicrm_relationship.start_date IS NULL OR civicrm_relationship.start_date <= {$today} )
@@ -3846,7 +3868,7 @@ civicrm_relationship.is_active = 1 AND
       $this->_qill[$grouping][] = ts('Relationship - Active and Current');
     }
     elseif ($relStatus[2] == 1) {
-      $this->_where[$grouping][] = "(
+      $where[$grouping][] = "(
 civicrm_relationship.is_active = 0 OR
 civicrm_relationship.end_date < {$today} OR
 civicrm_relationship.start_date > {$today}
@@ -3854,19 +3876,43 @@ civicrm_relationship.start_date > {$today}
       $this->_qill[$grouping][] = ts('Relationship - Inactive or not Current');
     }
 
-    $this->addRelationshipDateClauses($grouping);
+    $this->addRelationshipDateClauses($grouping, $where);
     if(!empty($rType) && isset($rType->id)){
-      $this->_where[$grouping][] = 'civicrm_relationship.relationship_type_id = ' . $rType->id;
+      $where[$grouping][] = 'civicrm_relationship.relationship_type_id = ' . $rType->id;
     }
     $this->_tables['civicrm_relationship'] = $this->_whereTables['civicrm_relationship'] = 1;
     $this->_useDistinct = TRUE;
     $this->_relationshipValuesAdded = TRUE;
+    // it could be a or b, using an OR creates an unindexed join - better to create a temp table &
+    // join on that,
+    // @todo creating a temp table could be expanded to group filter
+    // as even creating a temp table of all relationships is much much more efficient than
+    // an OR in the join
+    if($relationshipTempTable) {
+      $whereClause = ' WHERE ' . implode(' AND ', $where[$grouping]);
+      $sql = "
+        CREATE TEMPORARY TABLE {$relationshipTempTable}
+          (SELECT contact_id_b as contact_id, civicrm_relationship.id
+            FROM civicrm_relationship
+            INNER JOIN  civicrm_contact c ON civicrm_relationship.contact_id_a = c.id
+            $whereClause )
+          UNION
+            (SELECT contact_id_a as contact_id, civicrm_relationship.id
+            FROM civicrm_relationship
+            INNER JOIN civicrm_contact c ON civicrm_relationship.contact_id_b = c.id
+            $whereClause )
+      ";
+      CRM_Core_DAO::executeQuery($sql);
+    }
+
   }
 /**
  * Add start & end date criteria in
  * @param string $grouping
+ * @param array $where = array to add where clauses to, in case you are generating a temp table
+ * not the main query.
  */
-  function addRelationshipDateClauses($grouping){
+  function addRelationshipDateClauses($grouping, &$where){
     $dateValues = array();
     $dateTypes = array(
         'start_date',
@@ -3878,12 +3924,12 @@ civicrm_relationship.start_date > {$today}
       $dateValueHigh= $this->getWhereValues('relation_'. $dateField .'_high', $grouping);
       if(!empty($dateValueLow)){
         $date = date('Ymd', strtotime($dateValueLow[2]));
-        $this->_where[$grouping][] = "civicrm_relationship.$dateField >= $date";
+        $where[$grouping][] = "civicrm_relationship.$dateField >= $date";
         $this->_qill[$grouping][] = ($dateField == 'end_date' ? ts('Relationship Ended on or After') : ts('Relationship Recorded Start Date On or Before')) . " " . CRM_Utils_Date::customFormat($date);
       }
       if(!empty($dateValueHigh)){
         $date = date('Ymd', strtotime($dateValueHigh[2]));
-        $this->_where[$grouping][] = "civicrm_relationship.$dateField <= $date";
+        $where[$grouping][] = "civicrm_relationship.$dateField <= $date";
         $this->_qill[$grouping][] = ( $dateField == 'end_date' ? ts('Relationship Ended on or Before') : ts('Relationship Recorded Start Date On or After')) . " " . CRM_Utils_Date::customFormat($date);
       }
     }
@@ -4081,10 +4127,10 @@ civicrm_relationship.start_date > {$today}
         return array($noRows,NULL);
       }
       $val = $query->store($dao);
-      $convertedVals = $query->convertToPseudoNames($dao);
+      $convertedVals = $query->convertToPseudoNames($dao, TRUE);
 
       if (!empty($convertedVals)) {
-        $val = array_merge($val, $convertedVals);
+        $val = array_merge_recursive($val, $convertedVals);
       }
       $values[$dao->contact_id] = $val;
     }
@@ -5033,11 +5079,10 @@ AND   displayRelType.is_active = 1
    * convert the pseudo constants id's to their names
    * @param  reference parameter $dao
    */
-  function convertToPseudoNames(&$dao) {
+  function convertToPseudoNames(&$dao, $return = FALSE) {
     if (empty($this->_pseudoConstantsSelect)) {
       return;
     }
-
     $values = array();
     foreach ($this->_pseudoConstantsSelect as $key => $value) {
       if (CRM_Utils_Array::value('sorting', $this->_pseudoConstantsSelect[$key])) {
@@ -5049,10 +5094,8 @@ AND   displayRelType.is_active = 1
 
         if (CRM_Utils_System::isNull($val)) {
           $dao->$key = NULL;
-          continue;
         }
-
-        if ($baoName = CRM_Utils_Array::value('bao', $value, NULL)) {
+        elseif ($baoName = CRM_Utils_Array::value('bao', $value, NULL)) {
           $dao->$key = CRM_Core_PseudoConstant::getLabel($baoName, $value['pseudoField'], $val);
         }
         elseif ($value['pseudoField'] == 'state_province_abbreviation') {
@@ -5062,7 +5105,25 @@ AND   displayRelType.is_active = 1
           $labels = CRM_Core_OptionGroup::values($value['pseudoField']);
           $dao->$key = $labels[$val];
         }
-        $values[$key] = $dao->$key;
+
+        // return converted values in array format
+        if ($return) {
+          if (strpos($key, '-') !== FALSE) {
+            $keyVal = explode('-', $key);
+            $current = &$values;
+            $lastElement = array_pop($keyVal);
+            foreach ($keyVal as $v) {
+              if (!array_key_exists($v, $current)) {
+                $current[$v] = array();
+              }
+              $current = &$current[$v];
+            }
+            $current[$lastElement] = $dao->$key;
+          }
+          else {
+            $values[$key] = $dao->$key;
+          }
+        }
       }
     }
     return $values;

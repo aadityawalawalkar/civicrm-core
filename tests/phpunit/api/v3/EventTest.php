@@ -196,8 +196,8 @@ class api_v3_EventTest extends CiviUnitTestCase {
     $description        = "demonstrates use of is.Current option";
     $subfile            = "IsCurrentOption";
     $result             = $this->callAPIAndDocument('Event', 'Get', $params, __FUNCTION__, __FILE__, $description, $subfile);
-    $allEvents = $this->callAPISuccess('Event', 'Get', array('version' => 3));
-    $this->callAPISuccess('Event', 'Delete', array('version' => 3, 'id' => $currentEvent['id']));
+    $allEvents = $this->callAPISuccess('Event', 'Get', array());
+    $this->callAPISuccess('Event', 'Delete', array('id' => $currentEvent['id']));
     $this->assertEquals(1, $result['count'], 'confirm only one event found in line ' . __LINE__);
     $this->assertEquals(3, $allEvents['count'], 'confirm three events exist (ie. two not found) ' . __LINE__);
     $this->assertEquals($currentEvent['id'], $result['id'], '');
@@ -384,7 +384,7 @@ class api_v3_EventTest extends CiviUnitTestCase {
      * Trying to delete an event with participants should return error
      */
   function testDeleteWithExistingParticipant() {
-    $contactID = $this->individualCreate(NULL);
+    $contactID = $this->individualCreate();
     $participantID = $this->participantCreate(
       array(
         'contactID' => $contactID,

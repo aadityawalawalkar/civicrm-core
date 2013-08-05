@@ -39,6 +39,7 @@ class api_v3_MembershipTest extends CiviUnitTestCase {
   protected $_apiversion;
   protected $_contactID;
   protected $_membershipTypeID;
+  protected $_membershipTypeID2;
   protected $_membershipStatusID;
   protected $__membershipID;
   protected $_entity;
@@ -50,10 +51,10 @@ class api_v3_MembershipTest extends CiviUnitTestCase {
     parent::setUp();
     $this->_apiversion = 3;
     $this->_contactID = $this->individualCreate();
-    $this->_membershipTypeID = $this->membershipTypeCreate($this->_contactID);
+    $this->_membershipTypeID = $this->membershipTypeCreate(array('member_of_contact_id' => $this->_contactID));
+    $this->_membershipTypeID2 = $this->membershipTypeCreate(array('period_type' => 'fixed','fixed_period_start_day' => '301', 'fixed_period_rollover_day' => '1111'));
     $this->_membershipStatusID = $this->membershipStatusCreate('test status');
 
-    require_once 'CRM/Member/PseudoConstant.php';
     CRM_Member_PseudoConstant::membershipType(NULL, TRUE);
     CRM_Member_PseudoConstant::membershipStatus(NULL, NULL, 'name', TRUE);
     CRM_Core_PseudoConstant::activityType(TRUE, TRUE, TRUE, 'name');
@@ -80,6 +81,7 @@ class api_v3_MembershipTest extends CiviUnitTestCase {
       TRUE
     );
     $this->membershipStatusDelete($this->_membershipStatusID);
+    $this->membershipTypeDelete(array('id' => $this->_membershipTypeID2));
     $this->membershipTypeDelete(array('id' => $this->_membershipTypeID));
     $this->contactDelete($this->_contactID);
 
@@ -307,7 +309,7 @@ class api_v3_MembershipTest extends CiviUnitTestCase {
    */
   function testGetWithRelationship() {
     $membershipOrgId = $this->organizationCreate(NULL);
-    $memberContactId = $this->individualCreate(NULL);
+    $memberContactId = $this->individualCreate();
 
     $relTypeParams = array(
       'name_a_b' => 'Relation 1',
@@ -659,7 +661,128 @@ class api_v3_MembershipTest extends CiviUnitTestCase {
       'id' => $result['id'],
     ));
   }
+  /**
+   * Test civicrm_contact_memberships_create with membership_contact_id
+   * membership).
+   * Success expected.
+   */
+  function testMembershipCreateValidMembershipTypeString() {
+    $params = array(
+      'membership_contact_id' => $this->_contactID,
+      'membership_type_id' => 'General',
+      'join_date' => '2011-01-21',
+      'start_date' => '2010-01-21',
+      'end_date' => '2008-12-21',
+      'source' => 'Payment',
+      'is_override' => 1,
+      'status_id' => $this->_membershipStatusID,
+    );
 
-  ///////////////// civicrm_membership_delete methods
+    $result = $this->callAPISuccess('membership', 'create', $params);
+    $this->assertEquals($this->_membershipTypeID, $result['values'][$result['id']]['membership_type_id']);
+    $result = $this->callAPISuccess('Membership', 'Delete', array(
+      'id' => $result['id'],
+    ));
+  }
+
+  /**
+   * Test civicrm_contact_memberships_create with membership_contact_id
+   * membership).
+   * Success expected.
+   */
+  function testMembershipCreateInValidMembershipTypeString() {
+    $params = array(
+      'membership_contact_id' => $this->_contactID,
+      'membership_type_id' => 'invalid',
+      'join_date' => '2011-01-21',
+      'start_date' => '2010-01-21',
+      'end_date' => '2008-12-21',
+      'source' => 'Payment',
+      'is_override' => 1,
+      'status_id' => $this->_membershipStatusID,
+    );
+
+    $result = $this->callAPIFailure('membership', 'create', $params);
+  }
+
+  /**
+   * Test that if membership join date is not set it defaults to today
+   */
+  function testEmptyJoinDate() {
+    unset($this->_params['join_date'], $this->_params['is_override']);
+    $result = $this->callAPISuccess($this->_entity, 'create', $this->_params);
+    $result = $this->callAPISuccess($this->_entity, 'getsingle', array('id' => $result['id']));
+    $this->assertEquals(date('Y-m-d', strtotime('now')), $result['join_date']);
+    $this->assertEquals('2009-01-21', $result['start_date']);
+    $this->assertEquals('2009-12-21', $result['end_date']);
+  }
+  /**
+   * Test that if membership start date is not set it defaults to correct end date
+   *  - fixed
+   */
+  function testEmptyStartDateFixed() {
+    unset($this->_params['start_date'], $this->_params['is_override']);
+    $this->_params['membership_type_id'] = $this->_membershipTypeID2;
+    $result = $this->callAPISuccess($this->_entity, 'create', $this->_params);
+    $result = $this->callAPISuccess($this->_entity, 'getsingle', array('id' => $result['id']));
+    $this->assertEquals('2009-01-21', $result['join_date']);
+    $this->assertEquals('2008-03-01', $result['start_date']);
+    $this->assertEquals('2009-12-21', $result['end_date']);
+  }
+
+  /**
+   * Test that if membership start date is not set it defaults to correct end date
+   *  - fixed
+   */
+  function testEmptyStartDateRolling() {
+    unset($this->_params['start_date'], $this->_params['is_override']);
+    $result = $this->callAPISuccess($this->_entity, 'create', $this->_params);
+    $result = $this->callAPISuccess($this->_entity, 'getsingle', array('id' => $result['id']));
+    $this->assertEquals('2009-01-21', $result['join_date']);
+    $this->assertEquals('2009-01-21', $result['start_date']);
+    $this->assertEquals('2009-12-21', $result['end_date']);
+  }
+  /**
+   * Test that if membership end date is not set it defaults to correct end date
+   *  - rolling
+   */
+  function testEmptyEndDateFixed() {
+    unset($this->_params['start_date'], $this->_params['is_override'], $this->_params['end_date']);
+    $this->_params['membership_type_id'] = $this->_membershipTypeID2;
+    $result = $this->callAPISuccess($this->_entity, 'create', $this->_params);
+    $result = $this->callAPISuccess($this->_entity, 'getsingle', array('id' => $result['id']));
+    $this->assertEquals('2009-01-21', $result['join_date']);
+    $this->assertEquals('2008-03-01', $result['start_date']);
+    $this->assertEquals('2010-02-28', $result['end_date']);
+  }
+  /**
+   * Test that if membership end date is not set it defaults to correct end date
+   *  - rolling
+   */
+  function testEmptyEndDateRolling() {
+    unset($this->_params['is_override'], $this->_params['end_date']);
+    $this->_params['membership_type_id'] = $this->_membershipTypeID;
+    $result = $this->callAPISuccess($this->_entity, 'create', $this->_params);
+    $result = $this->callAPISuccess($this->_entity, 'getsingle', array('id' => $result['id']));
+    $this->assertEquals('2009-01-21', $result['join_date']);
+    $this->assertEquals('2009-01-21', $result['start_date']);
+    $this->assertEquals('2010-01-20', $result['end_date']);
+  }
+
+
+  /**
+   * Test that if datesdate are not set they not over-ridden if id is passed in
+   */
+   function testMembershipDatesNotOverridden() {
+    $result = $this->callAPISuccess($this->_entity, 'create', $this->_params);
+    unset($this->_params['end_date'], $this->_params['start_date']);
+    $this->_params['id'] = $result['id'];
+    $this->callAPISuccess($this->_entity, 'create', $this->_params);
+    $result = $this->callAPISuccess($this->_entity, 'getsingle', array('id' => $result['id']));
+    $this->assertEquals('2009-01-21', $result['join_date']);
+    $this->assertEquals('2009-01-21', $result['start_date']);
+    $this->assertEquals('2009-12-21', $result['end_date']);
+
+   }
 }
 

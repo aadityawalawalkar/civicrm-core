@@ -75,8 +75,8 @@ class api_v3_RelationshipTypeTest extends CiviUnitTestCase {
   function setUp() {
 
     parent::setUp();
-    $this->_cId_a      = $this->individualCreate(NULL);
-    $this->_cId_b      = $this->organizationCreate(NULL);
+    $this->_cId_a      = $this->individualCreate();
+    $this->_cId_b      = $this->organizationCreate();
   }
 
   function tearDown() {
@@ -208,7 +208,7 @@ class api_v3_RelationshipTypeTest extends CiviUnitTestCase {
    */
   function testRelationshipTypeUpdateWithoutContactType() {
     // create sample relationship type.
-    $this->_relTypeID = $this->_relationshipTypeCreate(NULL);
+    $this->_relTypeID = $this->_relationshipTypeCreate();
 
     $relTypeParams = array(
       'id' => $this->_relTypeID,
@@ -230,7 +230,7 @@ class api_v3_RelationshipTypeTest extends CiviUnitTestCase {
    */
   function testRelationshipTypeUpdate() {
     // create sample relationship type.
-    $this->_relTypeID = $this->_relationshipTypeCreate(NULL);
+    $this->_relTypeID = $this->_relationshipTypeCreate();
 
     $params = array(
       'id' => $this->_relTypeID,

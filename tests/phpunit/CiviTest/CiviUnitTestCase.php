@@ -866,9 +866,8 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
    *
    * @return int    id of Individual created
    */
-  function individualCreate($params = NULL) {
-    if ($params === NULL) {
-      $params = array(
+  function individualCreate($params = array()) {
+    $params = array_merge(array(
         'first_name' => 'Anthony',
         'middle_name' => 'J.',
         'last_name' => 'Anderson',
@@ -876,8 +875,8 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
         'suffix_id' => 3,
         'email' => 'anthony_anderson@civicrm.org',
         'contact_type' => 'Individual',
-      );
-    }
+      ),$params);
+
     return $this->_contactCreate($params);
   }
 
@@ -940,36 +939,26 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
     }
   }
 
-  function membershipTypeCreate($contactID, $contributionTypeID = 1, $version = 3) {
-    require_once 'CRM/Member/PseudoConstant.php';
+  function membershipTypeCreate($params = array()) {
     CRM_Member_PseudoConstant::flush('membershipType');
     CRM_Core_Config::clearDBCache();
-    $params = array(
+    $params = array_merge(array(
       'name' => 'General',
       'duration_unit' => 'year',
       'duration_interval' => 1,
       'period_type' => 'rolling',
-      'member_of_contact_id' => $contactID,
+      'member_of_contact_id' => 1,
       'domain_id' => 1,
-      // FIXME: I know it's 1, cause it was loaded directly to the db.
-      // FIXME: when we load all the data, we'll need to address this to
-      // FIXME: avoid hunting numbers around.
-      'financial_type_id' => $contributionTypeID,
+      'financial_type_id' => 1,
       'is_active' => 1,
-      'version' => $version,
       'sequential' => 1,
       'visibility' => 1,
-    );
+    ), $params);
 
-    $result = civicrm_api('MembershipType', 'Create', $params);
-    require_once 'CRM/Member/PseudoConstant.php';
+    $result = $this->callAPISuccess('MembershipType', 'Create', $params);
+
     CRM_Member_PseudoConstant::flush('membershipType');
     CRM_Utils_Cache::singleton()->flush();
-    if (CRM_Utils_Array::value('is_error', $result) ||
-      (!CRM_Utils_Array::value('id', $result) && !CRM_Utils_Array::value('id', $result['values'][0]))
-    ) {
-      throw new Exception('Could not create membership type, with message: ' . CRM_Utils_Array::value('error_message', $result));
-    }
 
     return $result['id'];
   }
@@ -1028,17 +1017,17 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
     return;
   }
 
-  function relationshipTypeCreate($params = NULL) {
-    if (is_null($params)) {
-      $params = array(
+  function relationshipTypeCreate($params = array()) {
+    $params = array_merge(array(
         'name_a_b' => 'Relation 1 for relationship type create',
         'name_b_a' => 'Relation 2 for relationship type create',
         'contact_type_a' => 'Individual',
         'contact_type_b' => 'Organization',
         'is_reserved' => 1,
         'is_active' => 1,
-      );
-    }
+      ),
+       $params
+    );
 
     $result = $this->callAPISuccess('relationship_type', 'create', $params);
     CRM_Core_PseudoConstant::flush('relationshipType');
@@ -1578,7 +1567,7 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
   function activityCreate($params = NULL) {
 
     if ($params === NULL) {
-      $individualSourceID = $this->individualCreate(NULL);
+      $individualSourceID = $this->individualCreate();
 
       $contactParams = array(
         'first_name' => 'Julia',
@@ -1939,6 +1928,11 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
       'scheduled_date' => '20130728085413',
       'approval_date' => '20130728085413',
       'pledge_start_date_high' => '20130726090416',
+      'start_date' => '2013-07-29 00:00:00',
+      'event_start_date' => '2013-07-29 00:00:00',
+      'end_date' => '2013-08-04 00:00:00',
+      'event_end_date' => '2013-08-04 00:00:00',
+      'decision_date' => '20130805000000',
     );
 
     $keysToUnset = array('xdebug', 'undefined_fields',);
@@ -1947,9 +1941,20 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
         unset($result[$unwantedKey]);
       }
     }
+    if (isset($result['values'])) {
+      if(!is_array($result['values'])) {
+        return;
+      }
+      $resultArray = &$result['values'];
+    }
+    elseif(is_array($result)) {
+      $resultArray = &$result;
+    }
+    else {
+      return;
+    }
 
-    if (isset($result['values']) && is_array($result['values'])) {
-      foreach ($result['values'] as $index => &$values) {
+    foreach ($resultArray as $index => &$values) {
         if(!is_array($values)) {
           continue;
         }
@@ -1969,11 +1974,10 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
           if(in_array($key, $keysToUnset)) {
             unset($values[$key]);
           }
-          if(array_key_exists($key, $fieldsToChange)) {
+          if(array_key_exists($key, $fieldsToChange) && !empty($value)) {
             $value = $fieldsToChange[$key];
           }
         }
-      }
     }
   }
 

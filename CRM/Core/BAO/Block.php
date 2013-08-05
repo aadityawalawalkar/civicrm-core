@@ -435,6 +435,10 @@ class CRM_Core_BAO_Block {
    */
   public static function handlePrimary(&$params, $class) {
     $table = CRM_Core_DAO_AllCoreTables::getTableForClass($class);
+    if (!$table) {
+      throw new API_Exception("Failed to locate table for class [$class]");
+    }
+
     // contact_id in params might be empty or the string 'null' so cast to integer
     $contactId = (int) CRM_Utils_Array::value('contact_id', $params);
     // If id is set & we haven't been passed a contact_id, retrieve it
