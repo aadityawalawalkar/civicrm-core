@@ -135,21 +135,18 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
     $config           = CRM_Core_Config::singleton();
     $showContribution = FALSE;
     $components       = array('CiviEvent' => array('title' => ts('Event'),
-        'extend' => CRM_Core_Component::getComponentID('CiviEvent'),
         'tables' => array(
           'civicrm_event',
           'civicrm_participant',
         ),
       ),
       'CiviContribute' => array('title' => ts('Contribution'),
-        'extend' => CRM_Core_Component::getComponentID('CiviContribute'),
         'tables' => array(
           'civicrm_contribution',
           'civicrm_contribution_page',
         ),
       ),
       'CiviMember' => array('title' => ts('Membership'),
-        'extend' => CRM_Core_Component::getComponentID('CiviMember'),
         'tables' => array(
           'civicrm_membership',
           'civicrm_contribution_page',
@@ -161,6 +158,7 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
       if (!in_array($compName, $config->enableComponents)) {
         continue;
       }
+      $compValues['extend'] = CRM_Core_Component::getComponentID($compName);
       $option = $this->createElement('checkbox', $compValues['extend'], NULL, $compValues['title']);
 
       //if price set is used than freeze it.
