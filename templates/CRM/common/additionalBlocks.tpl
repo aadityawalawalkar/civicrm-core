@@ -83,10 +83,12 @@ function buildAdditionalBlocks( blockName, className ) {
         success : function(html){
             if (className == 'CRM_Event_Form_ManageEvent_Location') {
               if (currentInstance >= 2) {
-                if (blockName == 'Email')
+                if (blockName == 'Email') {
                   addLinkEmail = cj('table.form-layout-compressed a#add' + blockName).detach();
-                else if (blockName == 'Phone')
+                }
+                else if (blockName == 'Phone') {
                   addLinkPhone = cj('table.form-layout-compressed a#add' + blockName).detach();
+                }
               }
             }
             cj(fname).after(html);
@@ -184,12 +186,12 @@ function removeBlock( blockName, blockId ) {
       var lastInstance = parseInt( cj( '[id^="'+ blockElement +'"]:last' ).attr('id').slice( blockElement.length ) );
       if (lastInstance < 2) {
         if (blockName == 'Email') {
-	  addLinkEmail.appendTo('td.crm_location_email');
-	  addLinkEmail = null;
+          addLinkEmail.appendTo('td.crm_location_email');
+          addLinkEmail = null;
         }
-	else if (blockName == 'Phone') {
-	  addLinkPhone.appendTo('td.crm_location_phone');
-	  addLinkPhone = null;
+        else if (blockName == 'Phone') {
+          addLinkPhone.appendTo('td.crm_location_phone');
+          addLinkPhone = null;
         }
       }
     }
