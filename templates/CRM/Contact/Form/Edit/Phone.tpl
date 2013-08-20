@@ -39,16 +39,20 @@
 {/if}
 <tr id="Phone_Block_{$blockId}">
     <td>{$form.phone.$blockId.phone.html}&nbsp;&nbsp;{ts}ext.{/ts}&nbsp;{$form.phone.$blockId.phone_ext.html|crmAddClass:four}&nbsp;</td>
-    <td>{$form.phone.$blockId.location_type_id.html}</td>
+    {if $form.phone.$blockId.location_type_id.html}
+      <td>{$form.phone.$blockId.location_type_id.html}</td>
+    {/if}
     <td colspan="2">{$form.phone.$blockId.phone_type_id.html}</td>
-    <td align="center" id="Phone-Primary-html" {if $blockId eq 1}class="hiddenElement"{/if}>{$form.phone.$blockId.is_primary.1.html}</td>
+    {if $form.phone.$blockId.is_primary.1.html}
+      <td align="center" id="Phone-Primary-html" {if $blockId eq 1}class="hiddenElement"{/if}>{$form.phone.$blockId.is_primary.1.html}</td>
+    {/if}
     {if $blockId gt 1}
   <td><a href="#" title="{ts}Delete Phone Block{/ts}" onClick="removeBlock('Phone','{$blockId}'); return false;">{ts}delete{/ts}</a></td>
     {/if}
 </tr>
 {if !$addBlock}
 <tr>
-<td colspan="4">
+<td colspan="4" class="crm_location_phone">
 &nbsp;&nbsp;<a id='addPhone' href="#" title={ts}Add{/ts} onClick="buildAdditionalBlocks( 'Phone', '{$className}');return false;">{ts}Add another Phone number{/ts}</a>
 </td>
 </tr>

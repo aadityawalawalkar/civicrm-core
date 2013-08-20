@@ -804,4 +804,122 @@ WHERE ceft.entity_id = %1 AND ceft.entity_table = 'civicrm_contribution'";
     $dao->fetch();
     $this->assertEquals('2', $dao->civicrm_financial_trxn, 'civicrm_financial_trxn count does not match');
   }
+
+  /**
+   * Test for CRM-11965 fix
+   */
+  function testAddDeleteEmailPhoneLocationTab() {
+    // Log in using webtestLogin() method
+    $this->webtestLogin();
+
+    // We need a payment processor
+    $processorName = "Webtest Dummy" . substr(sha1(rand()), 0, 7);
+    $this->webtestAddPaymentProcessor($processorName);
+
+    $this->openCiviPage("event/add", "reset=1&action=add");
+
+    $eventTitle = 'My Conference - ' . substr(sha1(rand()), 0, 7);
+    $eventDescription = "Here is a description for this conference.";
+    $this->_testAddEventInfo($eventTitle, $eventDescription);
+
+    $streetAddress = "100 Main Street";
+    $this->_testAddLocationDetails($streetAddress);
+
+    $this->_testAddReminder($eventTitle);
+
+    $this->_testAddFees(FALSE, FALSE, $processorName);
+
+    // intro text for registration page
+    $registerIntro = "Fill in all the fields below and click Continue.";
+    $multipleRegistrations = TRUE;
+    $this->_testAddOnlineRegistration($registerIntro, $multipleRegistrations);
+
+    $eventInfoStrings = array($eventTitle, $eventDescription, $streetAddress);
+    $eventId = $this->_testVerifyEventInfo($eventTitle, $eventInfoStrings);
+
+    $registerStrings = array("225.00", "Member", "300.00", "Non-member", $registerIntro);
+    $registerUrl = $this->_testVerifyRegisterPage($registerStrings);
+
+    $numberRegistrations = 3;
+    $anonymous = TRUE;
+    $this->_testOnlineRegistration($registerUrl, $numberRegistrations, $anonymous);
+
+    // Now test making a copy of the event
+    $this->webtestLogin();
+    $this->openCiviPage("event/manage", "reset=1&action=copy&id=$eventId");
+    $this->_testVerifyEventInfo('Copy of ' . $eventTitle, $eventInfoStrings);
+    $this->_testVerifyRegisterPage($registerStrings);
+  }
+
+  /**
+   * Helper function for CRM-11965 test
+   */
+  function _testAddLocationDetails() { 
+    // Wait for Location tab form to load
+    $this->waitForElementPresent("_qf_Location_upload-bottom");
+    
+    // Fill in address fields
+    $streetAddress = "100 Main Street";
+    $this->type("address_1_street_address", $streetAddress);
+    $this->type("address_1_city", "San Francisco");
+    $this->type("address_1_postal_code", "94117");
+    $this->select("address_1_state_province_id", "value=1004");
+    
+    // Fill in email fields
+    $email1 = "info" . substr(sha1(rand()), 0, 7) . "@civicrm.org";
+    $email2 = "info" . substr(sha1(rand()), 0, 7) . "@civicrm.org";
+    
+    $this->type("email_1_email", $email1);
+    $this->click("addEmail");
+    $this->waitForElementPresent("email_2_email");
+    $this->type("email_2_email", $email2);
+
+    $emailAddLink = $this->isElementPresent('addEmail');
+    $emailAddLink = $emailAddLink ? FALSE : TRUE;
+    // confirm that add Email link doesn't exists
+    // after adding two email fields
+    $this->assertTrue($emailAddLink);
+
+    // Fill in email phone fields
+    $phone1 = substr(rand(), 0, 3) . ' ' . substr(rand(), 0, 3) . '-' . substr(rand(), 0, 4);
+    $phone2 = substr(rand(), 1, 3) . ' ' . substr(rand(), 1, 3) . '-' . substr(rand(), 1, 4);
+    $this->type("phone_1_phone", $phone1);
+    $this->click("addPhone");
+    $this->waitForElementPresent("phone_2_phone");
+    $this->type("phone_2_phone", $phone2);
+    
+    $phoneAddLink = $this->isElementPresent('addPhone');
+    $phoneAddLink = $phoneAddLink ? FALSE : TRUE;
+    // confirm that add Phone link doesn't exists
+    // after adding two phone fields
+    $this->assertTrue($phoneAddLink);
+
+    $this->click("_qf_Location_upload-bottom");
+
+    // Wait for "saved" status msg
+    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->waitForTextPresent("'Location' information has been saved.");
+
+    // click on delete link to delete second email field
+    $this->waitForElementPresent("xpath=//div[@id='Address_Block_1']/table[2]/tbody/tr[@id='Email_Block_2']//td/a[@title='Delete Email Block']");
+    $this->click("xpath=//div[@id='Address_Block_1']/table[2]/tbody/tr[@id='Email_Block_2']//td/a[@title='Delete Email Block']");
+    // wait for add email link to reappear
+    $this->waitForElementPresent("addEmail");
+    $this->click("addEmail");
+    $this->waitForElementPresent("email_2_email");
+
+    // click on delete link to delete second phone field
+    $this->waitForElementPresent("xpath=//div[@id='Address_Block_1']/table[2]/tbody/tr[@id='Phone_Block_2']//td/a[@title='Delete Phone Block']");
+    $this->click("xpath=//div[@id='Address_Block_1']/table[2]/tbody/tr[@id='Phone_Block_2']//td/a[@title='Delete Phone Block']");
+    // wait for Add another Phone number link to reappear
+    $this->waitForElementPresent("addPhone");
+    $this->click("addPhone");
+    $this->waitForElementPresent("phone_2_phone");
+
+    $this->click("_qf_Location_upload-bottom");
+
+    // Wait for "saved" status msg
+    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->waitForTextPresent("'Location' information has been saved.");
+  }
 }

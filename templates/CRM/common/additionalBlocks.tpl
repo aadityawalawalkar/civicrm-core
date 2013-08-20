@@ -25,6 +25,8 @@
 *}
 {literal}
 <script type="text/javascript" >
+var addLinkEmail;
+var addLinkPhone;
 cj( function( ) {
     {/literal}
     {if $generateAjaxRequest}
@@ -79,6 +81,14 @@ function buildAdditionalBlocks( blockName, className ) {
         url     : dataUrl,
         async   : false,
         success : function(html){
+            if (className == 'CRM_Event_Form_ManageEvent_Location') {
+              if (currentInstance >= 2) {
+                if (blockName == 'Email')
+                  addLinkEmail = cj('table.form-layout-compressed a#add' + blockName).detach();
+                else if (blockName == 'Phone')
+                  addLinkPhone = cj('table.form-layout-compressed a#add' + blockName).detach();
+              }
+            }
             cj(fname).after(html);
             if ((typeof(Drupal) != 'undefined') && Drupal.attachBehaviors) {
               Drupal.attachBehaviors(cj('#' + blockName + '_Block_'+ currentInstance)[0]);
@@ -166,6 +176,22 @@ function removeBlock( blockName, blockId ) {
         if ( lastBlockId[2] ) {
             cj( '#addMoreAddress' + lastBlockId[2] ).show();
         }
+    }
+
+    if (blockName == 'Email' || blockName == 'Phone') {
+      var blockElement = blockName + '_Block_';
+      //get blockcount of last element of relevant blockName
+      var lastInstance = parseInt( cj( '[id^="'+ blockElement +'"]:last' ).attr('id').slice( blockElement.length ) );
+      if (lastInstance < 2) {
+        if (blockName == 'Email') {
+	  addLinkEmail.appendTo('td.crm_location_email');
+	  addLinkEmail = null;
+        }
+	else if (blockName == 'Phone') {
+	  addLinkPhone.appendTo('td.crm_location_phone');
+	  addLinkPhone = null;
+        }
+      }
     }
 }
 

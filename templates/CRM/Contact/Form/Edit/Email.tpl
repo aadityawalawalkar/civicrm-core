@@ -29,7 +29,7 @@
 
 {if !$addBlock}
     <tr>
-  <td>{ts}Email{/ts}
+  <td class="crm_location_email">{ts}Email{/ts}
       &nbsp;&nbsp;<a id='addEmail' href="#" title={ts}Add{/ts} onClick="buildAdditionalBlocks( 'Email', '{$className}');return false;">{ts}add{/ts}</a>
   </td>
   {if $className eq 'CRM_Contact_Form_Contact'}
@@ -56,13 +56,21 @@
 
 {/if}
     </td>
-    <td align="center">{$form.email.$blockId.on_hold.html}</td>
-    {if $multipleBulk}
-      <td align="center" id="Email-Bulkmail-html">{$form.email.$blockId.is_bulkmail.html}</td>
-    {else}
-      <td align="center" id="Email-Bulkmail-html">{$form.email.$blockId.is_bulkmail.1.html}</td>
+    {if $form.email.$blockId.on_hold.html}
+      <td align="center">{$form.email.$blockId.on_hold.html}</td>
     {/if}
-    <td align="center" id="Email-Primary-html" {if $blockId eq 1}class="hiddenElement"{/if}>{$form.email.$blockId.is_primary.1.html}</td>
+    {if $multipleBulk}
+      {if $form.email.$blockId.is_bulkmail.html}
+        <td align="center" id="Email-Bulkmail-html">{$form.email.$blockId.is_bulkmail.html}</td>
+      {/if}
+    {else}
+      {if $form.email.$blockId.is_bulkmail.1.html}
+        <td align="center" id="Email-Bulkmail-html">{$form.email.$blockId.is_bulkmail.1.html}</td>
+      {/if}
+    {/if}
+    {if $form.email.$blockId.is_primary.1.html}
+      <td align="center" id="Email-Primary-html" {if $blockId eq 1}class="hiddenElement"{/if}>{$form.email.$blockId.is_primary.1.html}</td>
+    {/if}
     {if $blockId gt 1}
   <td><a href="#" title="{ts}Delete Email Block{/ts}" onClick="removeBlock( 'Email', '{$blockId}' ); return false;">{ts}delete{/ts}</a></td>
     {/if}
