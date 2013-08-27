@@ -50,9 +50,9 @@ class CRM_Mailing_Form_Settings extends CRM_Core_Form {
     $this->assign('ssid',$ssID);
     $this->_searchBasedMailing = CRM_Contact_Form_Search::isSearchContext($this->get('context'));
     if(CRM_Contact_Form_Search::isSearchContext($this->get('context')) && !$ssID){
-    $params = array();
-    $result = CRM_Core_BAO_PrevNextCache::getSelectedContacts();
-    $this->assign("value", $result);
+      $params = array();
+      $result = CRM_Core_BAO_PrevNextCache::getSelectedContacts();
+      $this->assign("value", $result);
     }
   }
 
@@ -68,6 +68,9 @@ class CRM_Mailing_Form_Settings extends CRM_Core_Form {
     $mailingID = CRM_Utils_Request::retrieve('mid', 'Integer', $this, FALSE, NULL);
     $count = $this->get('count');
     $this->assign('count', $count);
+    $mailingRecipients = $this->get('mailingRecipients');
+    $this->assign('mailingRecipients', $mailingRecipients);
+    
     $defaults = array();
 
     $componentFields = array(

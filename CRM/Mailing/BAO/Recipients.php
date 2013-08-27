@@ -69,5 +69,27 @@ WHERE  mailing_id = %1
 
     return CRM_Core_DAO::executeQuery($sql, $params);
   }
+
+  static function mailingRecipients($mailingID) {
+    $sql = "
+SELECT contact_id
+FROM   civicrm_mailing_recipients
+WHERE  mailing_id = %1
+";
+    $params = array(1 => array($mailingID, 'Integer'));
+    $dao = CRM_Core_DAO::executeQuery($sql, $params);
+
+    $mailingRecipients = array();
+    while ($dao->fetch()) {
+      $mailingRecipients[$dao->contact_id] = CRM_Contact_BAO_Contact::displayName($dao->contact_id);
+    }
+    
+    if ($mailingRecipients) {
+      return $mailingRecipients;
+    }
+    else {
+      return false;
+    }
+  }
 }
 

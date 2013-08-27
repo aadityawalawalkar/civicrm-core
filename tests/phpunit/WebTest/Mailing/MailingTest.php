@@ -521,4 +521,229 @@ class WebTest_Mailing_MailingTest extends CiviSeleniumTestCase {
       }
     }
   }
+
+  /**
+   * CRM-11019
+   */
+ function testAddMailingViewRecipients() {
+    $this->webtestLogin();
+
+    //----do create test mailing group
+    $this->openCiviPage("group/add", "reset=1", "_qf_Edit_upload");
+
+    // make group name
+    $groupName = 'group_' . substr(sha1(rand()), 0, 7);
+
+    // fill group name
+    $this->type("title", $groupName);
+
+    // fill description
+    $this->type("description", "New mailing group for Webtest");
+
+    // enable Mailing List
+    $this->click("group_type[2]");
+
+    // select Visibility as Public Pages
+    $this->select("visibility", "value=Public Pages");
+
+    // Clicking save.
+    $this->clickLink("_qf_Edit_upload");
+
+    // Is status message correct?
+    $this->waitForText('crm-notification-container', "The Group '$groupName' has been saved.");
+
+    //---- create mailing contact and add to mailing Group
+    $firstName = substr(sha1(rand()), 0, 7);
+    $this->webtestAddContact($firstName, "Mailson", "mailino$firstName@mailson.co.in");
+
+    // Get contact id from url.
+    $contactId = $this->urlArg('cid');
+
+    // go to group tab and add to mailing group
+    $this->click("css=li#tab_group a");
+    $this->waitForElementPresent("_qf_GroupContact_next");
+    $this->select("group_id", "$groupName");
+    $this->clickLink("_qf_GroupContact_next", "_qf_GroupContact_next");
+
+    // configure default mail-box
+    $this->setupDefaultMailbox();
+
+    $this->openCiviPage("mailing/send", "reset=1", "_qf_Group_cancel");
+
+    //-------select recipients----------
+
+    // fill mailing name
+    $mailingName = substr(sha1(rand()), 0, 7);
+    $this->type("name", "Mailing $mailingName Webtest");
+
+    // Add the test mailing group
+    $this->select("includeGroups-f", "$groupName");
+    $this->click("add");
+
+    // click next
+    $this->clickLink("_qf_Group_next", "_qf_Settings_cancel");
+
+    //--------track and respond----------
+
+    // check for default settings options
+    $this->assertChecked("url_tracking");
+    $this->assertChecked("open_tracking");
+
+    // do check count for Recipient
+    $this->assertElementContainsText('css=.messages', "Total Recipients: 1");
+
+    // do check view mailing reicipients popup link
+    $this->assertElementContainsText('css=#mailingRecipients', "View Mailing Recipients");
+    
+    $this->click('mailingRecipients');
+    $this->waitForElementPresent("intendedRecords_last");
+    $this->assertEquals($this->getText("xpath=//table[@id='intendedRecords']/tbody/tr/td/"), "$firstName Mailson");
+    $this->waitForElementPresent("css=a.ui-dialog-titlebar-close");
+    $this->click("css=a.ui-dialog-titlebar-close");
+
+    // no need tracking for this test
+
+    // click next with default settings
+    $this->clickLink("_qf_Settings_next", "_qf_Upload_cancel");
+
+    //--------Mailing content------------
+    // let from email address be default
+
+    // fill subject for mailing
+    $this->type("subject", "Test subject {$mailingName} for Webtest");
+
+    // check for default option enabled
+    $this->assertChecked("CIVICRM_QFID_1_upload_type");
+
+    // HTML format message
+    $HTMLMessage = "This is HTML formatted content for Mailing {$mailingName} Webtest.";
+    $this->fillRichTextField("html_message", $HTMLMessage);
+
+    // Open Plain-text Format pane and type text format msg
+    $this->click("//fieldset[@id='compose_id']/div[2]/div[1]");
+    $this->type("text_message", "This is text formatted content for Mailing {$mailingName} Webtest.");
+
+    // select default header and footer ( with label )
+    $this->select("header_id", "label=Mailing Header");
+    $this->select("footer_id", "label=Mailing Footer");
+
+    // do check count for Recipient
+    $this->assertElementContainsText('css=.messages', "Total Recipients: 1");
+
+    // do check view mailing reicipients popup link
+    $this->assertElementContainsText('css=#mailingRecipients', "View Mailing Recipients");
+
+    $this->click('mailingRecipients');
+    $this->waitForElementPresent("intendedRecords_last");
+    $this->assertEquals($this->getText("xpath=//table[@id='intendedRecords']/tbody/tr/td/"), "$firstName Mailson");
+    $this->waitForElementPresent("css=a.ui-dialog-titlebar-close");
+    $this->click("css=a.ui-dialog-titlebar-close");
+
+    // click next with nominal content
+    $this->clickLink("_qf_Upload_upload", "_qf_Test_cancel");
+
+    //---------------Test------------------
+
+    ////////--Commenting test mailing and mailing preview (test mailing and preview not presently working).
+
+    // send test mailing
+    //$this->type("test_email", "mailino@mailson.co.in");
+    //$this->click("sendtest");
+
+    // verify status message
+    //$this->assertTrue($this->isTextPresent("Your test message has been sent. Click 'Next' when you are ready to Schedule or Send your live mailing (you will still have a chance to confirm or cancel sending this mailing on the next page)."));
+
+    // check mailing preview
+    //$this->click("//form[@id='Test']/div[2]/div[4]/div[1]");
+    //$this->assertTrue($this->isTextPresent("this is test content for Mailing $mailingName Webtest"));
+
+    ////////
+
+    // do check count for Recipient
+    $this->assertElementContainsText('css=.messages', "Total Recipients: 1");
+
+    // do check view mailing reicipients popup link
+    $this->assertElementContainsText('css=#mailingRecipients', "View Mailing Recipients");
+
+    $this->click('mailingRecipients');
+    $this->waitForElementPresent("intendedRecords_last");
+    $this->assertEquals($this->getText("xpath=//table[@id='intendedRecords']/tbody/tr/td/"), "$firstName Mailson");
+    $this->waitForElementPresent("css=a.ui-dialog-titlebar-close");
+    $this->click("css=a.ui-dialog-titlebar-close");
+
+    // click next
+    $this->clickLink("_qf_Test_next", "_qf_Schedule_cancel");
+
+    //----------Schedule or Send------------
+
+    // do check for default option enabled
+    $this->assertChecked("now");
+
+    // do check count for Recipient
+    $this->assertElementContainsText('css=.messages', "Total Recipients: 1");
+
+    // do check view mailing reicipients popup link
+    $this->assertElementContainsText('css=#mailingRecipients', "View Mailing Recipients");
+
+    $this->click('mailingRecipients');
+    $this->waitForElementPresent("intendedRecords_last");
+    $this->assertEquals($this->getText("xpath=//table[@id='intendedRecords']/tbody/tr/td/"), "$firstName Mailson");
+    $this->waitForElementPresent("css=a.ui-dialog-titlebar-close");
+    $this->click("css=a.ui-dialog-titlebar-close");
+
+    // finally schedule the mail by clicking submit
+    $this->clickLink("_qf_Schedule_next");
+
+    //----------end New Mailing-------------
+
+    //check redirected page to Scheduled and Sent Mailings and  verify for mailing name
+    $this->assertElementContainsText('page-title', "Scheduled and Sent Mailings");
+    $this->assertElementContainsText("xpath=//table[@class='selector']/tbody//tr//td", "Mailing $mailingName Webtest");
+
+    //--------- mail delivery verification---------
+    // test undelivered report
+
+    // click report link of created mailing
+    $this->clickLink("xpath=//table//tbody/tr[td[1]/text()='Mailing $mailingName Webtest']/descendant::a[text()='Report']");
+
+    // verify undelivered status message
+    $this->assertElementContainsText('css=.messages', "Delivery has not yet begun for this mailing. If the scheduled delivery date and time is past, ask the system administrator or technical support contact for your site to verify that the automated mailer task ('cron job') is running - and how frequently.");
+
+    // do check for recipient group
+    $this->assertElementContainsText("xpath=//fieldset/legend[text()='Recipients']/../table/tbody//tr/td", "Members of $groupName");
+
+    // directly send schedule mailing -- not working right now
+    $this->openCiviPage("mailing/queue", "reset=1");
+
+    //click report link of created mailing
+    $this->clickLink("xpath=//table//tbody/tr[td[1]/text()='Mailing $mailingName Webtest']/descendant::a[text()='Report']");
+
+    // do check again for recipient group
+    $this->assertElementContainsText("xpath=//fieldset/legend[text()='Recipients']/../table/tbody//tr/td", "Members of $groupName");
+
+    // verify intended recipients
+    $this->verifyText("xpath=//table//tr[td/a[text()='Intended Recipients']]/descendant::td[2]", preg_quote("1"));
+
+    // verify successful deliveries
+    $this->verifyText("xpath=//table//tr[td/a[text()='Successful Deliveries']]/descendant::td[2]", preg_quote("1 (100.00%)"));
+
+    // verify status
+    $this->verifyText("xpath=//table//tr[td[1]/text()='Status']/descendant::td[2]", preg_quote("Complete"));
+
+    // verify mailing name
+    $this->verifyText("xpath=//table//tr[td[1]/text()='Mailing Name']/descendant::td[2]", preg_quote("Mailing $mailingName Webtest"));
+
+    // verify mailing subject
+    $this->verifyText("xpath=//table//tr[td[1]/text()='Subject']/descendant::td[2]", preg_quote("Test subject $mailingName for Webtest"));
+
+    //---- check for delivery detail--
+
+    $this->clickLink("link=Successful Deliveries");
+
+    // check for open page
+    $this->assertElementContainsText( 'page-title', "Successful Deliveries");
+
+    // verify email
+    $this->verifyText("xpath=//table[@id='mailing_event']/tbody//tr/td[2]", preg_quote("mailino$firstName@mailson.co.in"));
+ }
 }

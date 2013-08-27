@@ -66,6 +66,8 @@ class CRM_Mailing_Form_Test extends CRM_Core_Form {
   function setDefaultValues() {
     $count = $this->get('count');
     $this->assign('count', $count);
+    $mailingRecipients = $this->get('mailingRecipients');
+    $this->assign('mailingRecipients', $mailingRecipients);
   }
 
   public function buildQuickForm() {

@@ -78,6 +78,9 @@ class CRM_Mailing_Form_Upload extends CRM_Core_Form {
     $count = $this->get('count');
     $this->assign('count', $count);
 
+    $mailingRecipients = $this->get('mailingRecipients');
+    $this->assign('mailingRecipients', $mailingRecipients);
+
     $this->set('skipTextFile', FALSE);
     $this->set('skipHtmlFile', FALSE);
 

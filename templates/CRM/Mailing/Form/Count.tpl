@@ -95,3 +95,71 @@ cj("#button").click(function(){
 </script>
 {/literal}
 {/if}
+
+{if $action eq 1 && $mailingRecipients}
+  <div class="status float-right">
+    <div id="recipientsPopupContainer">
+      <table id="intendedRecords" class="display crm-copy-fields">
+        <thead>
+          <tr class="columnheader">
+            <th class="contact_details">Name</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {foreach from=$mailingRecipients item='row'}
+          <tr class="{cycle values="odd-row,even-row"}">
+                 <td class="name">{$row}</td>
+              {/foreach}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+     <a href="#" id="mailingRecipients" title="Intended Mailing Recipients"> {ts}View Mailing Recipients{/ts}</a>
+  </div>
+{literal}
+<script type="text/javascript">
+cj("#recipientsPopupContainer").hide();
+cj("#mailingRecipients").click(function(){
+  cj("#recipientsPopupContainer").dialog({
+    title: "Selected Contacts",
+    width:700,
+    height:500,
+    modal: true,
+    overlay: {
+      opacity: 0.5,
+      background: "black"
+    }
+  });
+});
+
+cj( function( ) {
+  var count = 0; var columns=''; var sortColumn = '';
+
+  cj('#intendedRecords th').each( function( ) {
+    if ( cj(this).attr('class') == 'contact_details' ) {
+      sortColumn += '[' + count + ', "asc" ],';
+      columns += '{"sClass": "contact_details"},';
+    } else {
+      columns += '{ "bSortable": false },';
+    }
+    count++;
+  });
+
+  columns = columns.substring(0, columns.length - 1 );
+  sortColumn = sortColumn.substring(0, sortColumn.length - 1 );
+  eval('sortColumn =[' + sortColumn + ']');
+  eval('columns =[' + columns + ']');
+
+  //load jQuery data table.
+  cj('#intendedRecords').dataTable({
+    "sPaginationType": "full_numbers",
+    "bJQueryUI"  : true,
+    "aaSorting"  : sortColumn,
+    "aoColumns"  : columns,
+    "bFilter"    : false
+  });
+});
+</script>
+{/literal}
+{/if}

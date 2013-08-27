@@ -483,7 +483,14 @@ class CRM_Mailing_Form_Group extends CRM_Contact_Form_Task {
       $dedupeEmail
     );
 
-    $count = CRM_Mailing_BAO_Recipients::mailingSize($mailing->id);
+    $count = 0;
+    // fetch mailing recipients display name
+    $mailingRecipients = CRM_Mailing_BAO_Recipients::mailingRecipients($mailing->id);
+    if ($mailingRecipients && is_array($mailingRecipients)) {
+      $count = count($mailingRecipients);
+      $this->assign('mailingRecipients', $mailingRecipients);
+      $this->set('mailingRecipients', $mailingRecipients);
+    }
     $this->set('count', $count);
     $this->assign('count', $count);
     $this->set('groups', $groups);

@@ -83,7 +83,9 @@ class CRM_Mailing_Form_Schedule extends CRM_Core_Form {
     else {
       $count = $this->get('count');
     }
-     $this->assign('count', $count);
+    $this->assign('count', $count);
+    $mailingRecipients = $this->get('mailingRecipients');
+    $this->assign('mailingRecipients', $mailingRecipients);
     $defaults['now'] = 1;
     return $defaults;
   }
