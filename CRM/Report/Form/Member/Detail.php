@@ -475,19 +475,33 @@ class CRM_Report_Form_Member_Detail extends CRM_Report_Form {
     foreach ($rows as $rowNum => $row) {
 
       if (!empty($this->_noRepeats) && $this->_outputMode != 'csv') {
-        // not repeat contact display names if it matches with the one
-        // in previous row
         $repeatFound = FALSE;
-        foreach ($row as $colName => $colVal) {
-          if (CRM_Utils_Array::value($colName, $checkList) &&
-            is_array($checkList[$colName]) &&
-            in_array($colVal, $checkList[$colName])
-          ) {
-            $rows[$rowNum][$colName] = "";
-            $repeatFound = TRUE;
-          }
-          if (in_array($colName, $this->_noRepeats)) {
-            $checkList[$colName][] = $colVal;
+        $displayFlag = NULL;
+
+        if (array_key_exists('civicrm_contact_id', $row)) {
+          if ($cid = $row['civicrm_contact_id']) {
+            if ($rowNum == 0) {
+              $prevCid = $cid;
+            }
+            else {
+              if ($prevCid == $cid) {
+                $displayFlag = 1;
+                $prevCid = $cid;
+              }
+              else {
+                $displayFlag = 0;
+                $prevCid = $cid;
+              }
+            }
+
+            if ($displayFlag) {
+              foreach ($row as $colName => $colVal) {
+                if (in_array($colName, $this->_noRepeats)) {
+                  unset($rows[$rowNum][$colName]);
+                }
+              }
+            }
+            $entryFound = TRUE;
           }
         }
       }
