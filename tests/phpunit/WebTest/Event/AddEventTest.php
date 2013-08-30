@@ -804,4 +804,61 @@ WHERE ceft.entity_id = %1 AND ceft.entity_table = 'civicrm_contribution'";
     $dao->fetch();
     $this->assertEquals('2', $dao->civicrm_financial_trxn, 'civicrm_financial_trxn count does not match');
   }
+
+  function testAddEventPersonalCampaignRequiredField() {
+    // Log in using webtestLogin() method
+    $this->webtestLogin();
+
+    // We need a payment processor
+    $processorName = "Webtest Dummy" . substr(sha1(rand()), 0, 7);
+    $this->webtestAddPaymentProcessor($processorName);
+
+    $this->openCiviPage("event/add", "reset=1&action=add");
+
+    $eventTitle = 'My Conference - ' . substr(sha1(rand()), 0, 7);
+    $eventDescription = "Here is a description for this conference.";
+    $this->_testAddEventInfo($eventTitle, $eventDescription);
+
+    $streetAddress = "100 Main Street";
+    $this->_testAddLocation($streetAddress);
+
+    $this->_testAddReminder($eventTitle);
+
+    $this->_testAddFees(FALSE, FALSE, $processorName);
+
+    // Go to Personal Campaigns tab
+    $this->click('css=li#tab_pcp a');
+    $this->waitForElementPresent("_qf_Event_upload-bottom");
+    // click the save button
+    $this->click('_qf_Event_upload-bottom');
+
+    // Wait for "saved" status msg
+    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->waitForTextPresent("'Event' information has been saved.");
+
+    //check the status message
+    $this->assertTrue($this->isTextPresent("'Event' information has been saved.")); 
+    
+    $this->waitForElementPresent('pcp_active');
+    // check Enable Personal Campaign Pages? checkbox
+    $this->check('pcp_active');
+
+    //click on save and done without selecting Supporter Profile field
+    $this->click('_qf_Event_upload_done-bottom');
+
+    $this->waitForPageToLoad($this->getTimeoutMsec());    
+    // Wait for Supporter Profile validation error msg
+    $this->waitForTextPresent("Supporter profile is a required field.");
+    //check the validation message for Supporter Profile Field
+    $this->assertTrue($this->isTextPresent("Supporter profile is a required field.")); 
+
+    $this->waitForElementPresent('supporter_profile_id');
+    // select Supporter Profile select field
+    $this->select('supporter_profile_id', "value=2");
+    $this->click('_qf_Event_upload_done-bottom');
+    $this->waitForPageToLoad($this->getTimeoutMsec());
+    $this->waitForTextPresent("'Event' information has been saved.");
+    //check the status message
+    $this->assertTrue($this->isTextPresent("'Event' information has been saved."));
+  }
 }

@@ -141,8 +141,8 @@ class CRM_PCP_Form_Event extends CRM_Event_Form_ManageEvent {
    */
   public static function formRule($params, $files, $self) {
     $errors = array();
-    if (CRM_Utils_Array::value('is_active', $params)) {
-
+    if (CRM_Utils_Array::value('pcp_active', $params)) {
+      
       if (CRM_Utils_Array::value('is_tellfriend_enabled', $params) &&
         (CRM_Utils_Array::value('tellfriend_limit', $params) <= 0)
       ) {
